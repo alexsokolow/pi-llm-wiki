@@ -32,7 +32,7 @@ interface AuthConfig {
 const PROVIDER_DEFAULTS: Record<Provider, { endpoint: string; model: string }> = {
   copilot: {
     endpoint: 'https://api.githubcopilot.com/chat/completions',
-    model: 'gpt-4o-mini',
+    model: 'claude-opus-4.6',
   },
   openrouter: {
     endpoint: 'https://openrouter.ai/api/v1/chat/completions',
@@ -236,7 +236,7 @@ export async function listModels(): Promise<{ provider: Provider; models: string
   if (auth['github-copilot']?.access) {
     results.push({
       provider: 'copilot',
-      models: ['gpt-4o', 'gpt-4o-mini', 'claude-sonnet-4-20250514', 'o3-mini', 'gemini-2.0-flash'],
+      models: ['claude-opus-4.6', 'gpt-4o', 'gpt-4o-mini', 'claude-sonnet-4-20250514', 'o3-mini', 'gemini-2.0-flash'],
     });
   }
 

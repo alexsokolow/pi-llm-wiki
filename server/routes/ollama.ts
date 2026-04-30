@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import { readFile } from 'fs/promises';
+import path from 'path';
 import { generate, listModels, type Provider } from '../lib/llm-client.js';
 import * as wikiFs from '../lib/wiki-fs.js';
 
@@ -29,7 +31,35 @@ router.post('/ingest', async (req, res) => {
       model?: string;
       provider?: Provider;
     };
-    const sourceContent = await wikiFs.readSource(filename);
+
+    // Extract text from the source file (handles .docx, .pdf, .txt)
+    const ext = path.extname(filename).toLowerCase();
+    const filePath = path.resolve('wiki/raw', filename);
+    let sourceContent = '';
+
+    if (ext === '.docx') {
+      const mammoth = await import('mammoth');
+      const result = await mammoth.default.extractRawText({ path: filePath });
+      sourceContent = result.value;
+    } else if (ext === '.pdf') {
+      const pdfParse = (await import('pdf-parse')).default;
+      const buffer = await readFile(filePath);
+      const data = await pdfParse(buffer);
+      sourceContent = data.text;
+    } else {
+      sourceContent = await wikiFs.readSource(filename);
+    }
+
+    if (!sourceContent.trim()) {
+      res.status(400).json({ error: 'Could not extract text from file' });
+      return;
+    }
+
+    // Cap content to avoid overflowing LLM context
+    if (sourceContent.length > 10000) {
+      sourceContent = sourceContent.slice(0, 7000) + '\n\n[...middle content omitted...]\n\n' + sourceContent.slice(-3000);
+    }
+
     const schema = await loadSchema();
     const today = new Date().toISOString().split('T')[0];
 

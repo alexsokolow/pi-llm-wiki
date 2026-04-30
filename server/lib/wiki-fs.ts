@@ -63,6 +63,13 @@ export async function saveSource(filename: string, content: string): Promise<voi
   await fs.writeFile(full, content, 'utf-8');
 }
 
+export async function saveSourceBinary(filename: string, buffer: Buffer): Promise<void> {
+  const full = path.join(WIKI_ROOT, 'raw', filename);
+  validatePath(full);
+  await fs.mkdir(path.dirname(full), { recursive: true });
+  await fs.writeFile(full, buffer);
+}
+
 export async function readWikiFile(relPath: string): Promise<string> {
   const full = path.join(WIKI_ROOT, relPath);
   validatePath(full);
