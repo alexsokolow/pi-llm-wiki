@@ -1,2 +1,5 @@
 node_modules/
 dist/
+test_venv/
+*.pyc
+__pycache__/
