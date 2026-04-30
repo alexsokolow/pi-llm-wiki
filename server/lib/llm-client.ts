@@ -31,7 +31,7 @@ interface AuthConfig {
 
 const PROVIDER_DEFAULTS: Record<Provider, { endpoint: string; model: string }> = {
   copilot: {
-    endpoint: 'https://proxy.business.githubcopilot.com/v1/chat/completions',
+    endpoint: 'https://api.githubcopilot.com/chat/completions',
     model: 'gpt-4o-mini',
   },
   openrouter: {
