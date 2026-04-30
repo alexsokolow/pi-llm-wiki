@@ -5,6 +5,8 @@ import sourcesRouter from './routes/sources.js';
 import ollamaRouter from './routes/ollama.js';
 import searchRouter from './routes/search.js';
 
+import graphRouter from './routes/graph.js';
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -15,6 +17,7 @@ app.use('/api/wiki', wikiRouter);
 app.use('/api/sources', sourcesRouter);
 app.use('/api/ollama', ollamaRouter);
 app.use('/api/search', searchRouter);
+app.use('/api/graph', graphRouter);
 
 async function start() {
   if (process.env.NODE_ENV !== 'production') {

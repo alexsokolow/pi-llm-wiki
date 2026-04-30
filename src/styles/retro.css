@@ -459,3 +459,100 @@ body {
   border-top: 2px solid #30363d;
   margin-top: 0.5rem;
 }
+
+/* --- Graph View --- */
+.graph-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 0.5rem;
+  position: relative;
+}
+
+.graph-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  border: 2px solid #30363d;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.graph-stats {
+  display: flex;
+  gap: 1rem;
+  font-family: 'VT323', monospace;
+  font-size: 1rem;
+  color: #ff9d00;
+}
+
+.graph-filters {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.filter-btn {
+  font-family: 'VT323', monospace;
+  font-size: 0.9rem;
+  background: transparent;
+  color: #c9d1d9;
+  border: 2px solid #30363d;
+  padding: 0.25rem 0.6rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.filter-btn:hover,
+.filter-btn.active {
+  background: #30363d;
+  border-color: #ff9d00;
+}
+
+.filter-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 0;
+  display: inline-block;
+}
+
+.graph-canvas {
+  flex: 1;
+  border: 2px solid #30363d;
+  background: #0d1117;
+  overflow: hidden;
+  position: relative;
+}
+
+.graph-canvas svg {
+  display: block;
+}
+
+.graph-panel {
+  position: absolute;
+  bottom: 1rem;
+  right: 1rem;
+  width: 280px;
+  border: 2px solid #30363d;
+  background: #161b22;
+  padding: 0.75rem;
+  z-index: 10;
+}
+
+.graph-node-meta {
+  display: flex;
+  gap: 1rem;
+  margin: 0.5rem 0;
+  font-size: 0.9rem;
+}
+
+.graph-node-path {
+  font-size: 0.85rem;
+  color: #8b949e;
+  margin-bottom: 0.75rem;
+  word-break: break-all;
+}
