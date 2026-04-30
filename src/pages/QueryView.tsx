@@ -1,9 +1,15 @@
 import { useState, useRef, useEffect } from 'react'
 
+interface ProviderModels {
+  provider: string
+  models: string[]
+}
+
 export default function QueryView() {
   const [question, setQuestion] = useState('')
-  const [model, setModel] = useState('gemma4')
-  const [models, setModels] = useState<string[]>([])
+  const [providers, setProviders] = useState<ProviderModels[]>([])
+  const [provider, setProvider] = useState('')
+  const [model, setModel] = useState('')
   const [output, setOutput] = useState('')
   const [history, setHistory] = useState<string[]>([])
   const outputRef = useRef<HTMLDivElement>(null)
@@ -11,8 +17,15 @@ export default function QueryView() {
   useEffect(() => {
     fetch('/api/ollama/models')
       .then(r => r.json())
-      .then(data => setModels(data.models || []))
-      .catch(() => setModels([]))
+      .then(data => {
+        const p = data.providers || []
+        setProviders(p)
+        if (p.length > 0) {
+          setProvider(p[0].provider)
+          setModel(p[0].models[0] || '')
+        }
+      })
+      .catch(() => setProviders([]))
   }, [])
 
   useEffect(() => {
@@ -21,15 +34,24 @@ export default function QueryView() {
     }
   }, [output])
 
+  const currentModels = providers.find(p => p.provider === provider)?.models || []
+
+  const handleProviderChange = (newProvider: string) => {
+    setProvider(newProvider)
+    const models = providers.find(p => p.provider === newProvider)?.models || []
+    setModel(models[0] || '')
+  }
+
   const handleQuery = async () => {
     if (!question.trim()) return
     setOutput('')
     const q = question.trim()
     setHistory(h => [...h, q])
+    setQuestion('')
     const res = await fetch('/api/ollama/query', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question: q, model }),
+      body: JSON.stringify({ question: q, model, provider }),
     })
     if (!res.ok || !res.body) {
       setOutput('query failed')
@@ -67,11 +89,19 @@ export default function QueryView() {
       <div className="command-bar">
         <select
           className="model-select"
+          value={provider}
+          onChange={e => handleProviderChange(e.target.value)}
+        >
+          {providers.map(p => (
+            <option key={p.provider} value={p.provider}>{p.provider}</option>
+          ))}
+        </select>
+        <select
+          className="model-select"
           value={model}
           onChange={e => setModel(e.target.value)}
         >
-          <option value="gemma4">gemma4</option>
-          {models.filter(m => m !== 'gemma4').map(m => (
+          {currentModels.map(m => (
             <option key={m} value={m}>{m}</option>
           ))}
         </select>

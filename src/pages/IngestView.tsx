@@ -1,10 +1,16 @@
 import { useState, useRef, useEffect } from 'react'
 
+interface ProviderModels {
+  provider: string
+  models: string[]
+}
+
 export default function IngestView() {
   const [sources, setSources] = useState<string[]>([])
   const [selected, setSelected] = useState('')
-  const [model, setModel] = useState('gemma4')
-  const [models, setModels] = useState<string[]>([])
+  const [providers, setProviders] = useState<ProviderModels[]>([])
+  const [provider, setProvider] = useState('')
+  const [model, setModel] = useState('')
   const [status, setStatus] = useState('')
   const [output, setOutput] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
@@ -30,8 +36,23 @@ export default function IngestView() {
   const fetchModels = () => {
     fetch('/api/ollama/models')
       .then(r => r.json())
-      .then(data => setModels(data.models || []))
-      .catch(() => setModels([]))
+      .then(data => {
+        const p = data.providers || []
+        setProviders(p)
+        if (p.length > 0) {
+          setProvider(p[0].provider)
+          setModel(p[0].models[0] || '')
+        }
+      })
+      .catch(() => setProviders([]))
+  }
+
+  const currentModels = providers.find(p => p.provider === provider)?.models || []
+
+  const handleProviderChange = (newProvider: string) => {
+    setProvider(newProvider)
+    const models = providers.find(p => p.provider === newProvider)?.models || []
+    setModel(models[0] || '')
   }
 
   const handleUpload = async () => {
@@ -54,11 +75,11 @@ export default function IngestView() {
   const handleCompile = async () => {
     if (!selected) return
     setOutput('')
-    setStatus('compiling...')
+    setStatus(`compiling with ${provider}/${model}...`)
     const res = await fetch('/api/ollama/ingest', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ filename: selected, model }),
+      body: JSON.stringify({ filename: selected, model, provider }),
     })
     if (!res.ok || !res.body) {
       setStatus('compile failed')
@@ -100,11 +121,19 @@ export default function IngestView() {
         <div className="compile-row">
           <select
             className="model-select"
+            value={provider}
+            onChange={e => handleProviderChange(e.target.value)}
+          >
+            {providers.map(p => (
+              <option key={p.provider} value={p.provider}>{p.provider}</option>
+            ))}
+          </select>
+          <select
+            className="model-select"
             value={model}
             onChange={e => setModel(e.target.value)}
           >
-            <option value="gemma4">gemma4</option>
-            {models.filter(m => m !== 'gemma4').map(m => (
+            {currentModels.map(m => (
               <option key={m} value={m}>{m}</option>
             ))}
           </select>

@@ -1,9 +1,8 @@
 import { Router } from 'express';
-import { ollamaGenerate, listOllamaModels } from '../lib/ollama-client.js';
+import { generate, listModels, type Provider } from '../lib/llm-client.js';
 import * as wikiFs from '../lib/wiki-fs.js';
 
 const router = Router();
-const DEFAULT_MODEL = 'gemma4';
 
 async function loadSchema(): Promise<string> {
   try {
@@ -16,16 +15,20 @@ async function loadSchema(): Promise<string> {
 
 router.get('/models', async (_req, res) => {
   try {
-    const models = await listOllamaModels();
-    res.json({ models });
+    const providers = await listModels();
+    res.json({ providers });
   } catch {
-    res.status(503).json({ error: 'Ollama not reachable. Is it running?' });
+    res.status(503).json({ error: 'Failed to list models' });
   }
 });
 
 router.post('/ingest', async (req, res) => {
   try {
-    const { filename, model = DEFAULT_MODEL } = req.body as { filename: string; model?: string };
+    const { filename, model, provider } = req.body as {
+      filename: string;
+      model?: string;
+      provider?: Provider;
+    };
     const sourceContent = await wikiFs.readSource(filename);
     const schema = await loadSchema();
     const today = new Date().toISOString().split('T')[0];
@@ -57,7 +60,7 @@ Rules:
     res.setHeader('Transfer-Encoding', 'chunked');
 
     let fullResponse = '';
-    for await (const chunk of ollamaGenerate({ model, system: schema, prompt, stream: true })) {
+    for await (const chunk of generate({ provider, model, system: schema, prompt, stream: true })) {
       res.write(chunk);
       fullResponse += chunk;
     }
@@ -77,7 +80,7 @@ Rules:
           const index = await wikiFs.readWikiFile('index.md');
           await wikiFs.writeWikiFile('index.md', index + '\n' + result.indexSnippet);
         }
-        const logEntry = `\n## [${today}] ingest | ${filename}\n\nProcessed by ${model}.\n`;
+        const logEntry = `\n## [${today}] ingest | ${filename}\n\nProcessed by ${model || 'default'} (${provider || 'auto'}).\n`;
         const log = await wikiFs.readWikiFile('log.md');
         await wikiFs.writeWikiFile('log.md', log + logEntry);
       }
@@ -93,10 +96,14 @@ Rules:
 
 router.post('/query', async (req, res) => {
   try {
-    const { question, model = DEFAULT_MODEL } = req.body as { question: string; model?: string };
+    const { question, model, provider } = req.body as {
+      question: string;
+      model?: string;
+      provider?: Provider;
+    };
     const schema = await loadSchema();
     const searchResults = await wikiFs.searchWiki(question);
-    const context = searchResults.map(r => `--- ${r.path} ---\n${r.preview}`).join('\n\n');
+    const context = searchResults.map((r) => `--- ${r.path} ---\n${r.preview}`).join('\n\n');
     const indexContent = await wikiFs.readWikiFile('index.md').catch(() => '');
 
     const prompt = `Question: ${question}\n\nWiki index:\n${indexContent}\n\nRelevant pages found:\n${context || '(none)'}\n\nAnswer in markdown. Cite pages with [[Title]]. If you discover a new insight worth preserving, say: "WORTH FILING: <title>" at the end.`;
@@ -104,7 +111,7 @@ router.post('/query', async (req, res) => {
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader('Transfer-Encoding', 'chunked');
 
-    for await (const chunk of ollamaGenerate({ model, system: schema, prompt, stream: true })) {
+    for await (const chunk of generate({ provider, model, system: schema, prompt, stream: true })) {
       res.write(chunk);
     }
     res.end();
@@ -115,7 +122,7 @@ router.post('/query', async (req, res) => {
 
 router.post('/lint', async (req, res) => {
   try {
-    const { model = DEFAULT_MODEL } = req.body as { model?: string };
+    const { model, provider } = req.body as { model?: string; provider?: Provider };
     const schema = await loadSchema();
     const pages = await wikiFs.listPages();
     const snippets = await Promise.all(
@@ -141,12 +148,7 @@ Output a markdown report with findings and suggested fixes.`;
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader('Transfer-Encoding', 'chunked');
 
-    for await (const chunk of ollamaGenerate({
-      model,
-      system: schema,
-      prompt,
-      stream: true,
-    })) {
+    for await (const chunk of generate({ provider, model, system: schema, prompt, stream: true })) {
       res.write(chunk);
     }
     res.end();
