@@ -136,7 +136,22 @@ router.post('/query', async (req, res) => {
     const context = searchResults.map((r) => `--- ${r.path} ---\n${r.preview}`).join('\n\n');
     const indexContent = await wikiFs.readWikiFile('index.md').catch(() => '');
 
-    const prompt = `Question: ${question}\n\nWiki index:\n${indexContent}\n\nRelevant pages found:\n${context || '(none)'}\n\nAnswer in markdown. Cite pages with [[Title]]. If you discover a new insight worth preserving, say: "WORTH FILING: <title>" at the end.`;
+    // Build a rich context: index + full relevant pages
+    const prompt = `Question: ${question}
+
+Wiki index:
+${indexContent}
+
+Relevant wiki pages (ranked by relevance):
+${context || '(no matching pages found)'}
+
+Instructions:
+- Answer the question using ONLY information from the wiki pages above.
+- Be specific — cite exact values, loop designations, equipment IDs, etc. from the pages.
+- Cite pages with [[Title]] notation.
+- If the answer spans multiple pages, synthesize the information.
+- If you cannot find the answer in the provided context, say so clearly.
+- If you discover a new insight worth preserving, end with: "WORTH FILING: <title>"`;
 
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader('Transfer-Encoding', 'chunked');

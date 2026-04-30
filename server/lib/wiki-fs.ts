@@ -85,18 +85,54 @@ export async function writeWikiFile(relPath: string, content: string): Promise<v
 
 export async function searchWiki(query: string): Promise<{ path: string; preview: string }[]> {
   const pages = await listPages();
-  const results: { path: string; preview: string }[] = [];
-  const lowerQ = query.toLowerCase();
+  const results: { path: string; preview: string; score: number }[] = [];
+
+  // Tokenize query into meaningful search terms (3+ chars)
+  const terms = query
+    .toLowerCase()
+    .split(/[\s,;.!?()\[\]{}]+/)
+    .filter(t => t.length >= 2)
+    .filter(t => !['the', 'is', 'a', 'an', 'of', 'in', 'on', 'to', 'for', 'and', 'or', 'what', 'where', 'how', 'which', 'that', 'this', 'are', 'was', 'were', 'can', 'do', 'does'].includes(t));
+
+  if (terms.length === 0) return [];
+
   for (const p of pages) {
     const content = await readPage(p).catch(() => '');
-    if (content.toLowerCase().includes(lowerQ)) {
-      const idx = content.toLowerCase().indexOf(lowerQ);
-      const start = Math.max(0, idx - 80);
-      const end = Math.min(content.length, idx + 200);
-      results.push({ path: p, preview: content.slice(start, end).replace(/\n/g, ' ') });
+    const lower = content.toLowerCase();
+
+    // Score: how many terms appear in this page
+    let score = 0;
+    let bestIdx = -1;
+    for (const term of terms) {
+      const idx = lower.indexOf(term);
+      if (idx !== -1) {
+        score++;
+        // Count multiple occurrences for boosting
+        const occurrences = lower.split(term).length - 1;
+        score += Math.min(occurrences - 1, 3) * 0.5;
+        if (bestIdx === -1) bestIdx = idx;
+      }
+    }
+
+    if (score > 0) {
+      // Return full content (capped) for high-scoring pages, preview for lower
+      let preview: string;
+      if (score >= 2 || content.length < 2000) {
+        preview = content.slice(0, 3000);
+      } else {
+        const start = Math.max(0, bestIdx - 100);
+        const end = Math.min(content.length, bestIdx + 500);
+        preview = content.slice(start, end);
+      }
+      results.push({ path: p, preview, score });
     }
   }
-  return results;
+
+  // Sort by score descending, return top results
+  return results
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 8)
+    .map(({ path: p, preview }) => ({ path: p, preview }));
 }
 
 function validatePath(fullPath: string): void {
