@@ -113,6 +113,34 @@ const wikiSourcesTool = defineTool({
   }),
 });
 
+const wikiUpdateIndexTool = defineTool({
+  name: 'wiki_update_index',
+  label: 'Wiki Update Index',
+  description: 'Rewrite wiki/index.md with a full catalog of all pages. Pass the complete new index content.',
+  parameters: Type.Object({
+    content: Type.String({ description: 'Full markdown content for index.md (catalog of all pages with summaries)' }),
+  }),
+  execute: async (_toolCallId, params) => {
+    await wikiFs.writeWikiFile('index.md', params.content);
+    return { content: [{ type: 'text', text: 'Updated wiki/index.md' }], details: {} };
+  },
+});
+
+const wikiLogTool = defineTool({
+  name: 'wiki_log',
+  label: 'Wiki Log',
+  description: 'Append an entry to wiki/log.md. Use format: ## [YYYY-MM-DD] operation | description',
+  parameters: Type.Object({
+    entry: Type.String({ description: 'Log entry to append, e.g. "## [2026-05-05] ingest | Paper Title\\n\\nProcessed source, created N pages."' }),
+  }),
+  execute: async (_toolCallId, params) => {
+    const current = await wikiFs.readWikiFile('log.md').catch(() => '# Wiki Log\n');
+    await wikiFs.writeWikiFile('log.md', current + '\n' + params.entry + '\n');
+    return { content: [{ type: 'text', text: 'Appended to wiki/log.md' }], details: {} };
+  },
+});
+
+
 // ─── Session Factory ─────────────────────────────────────────────────────────
 
 export async function createWikiSession(opts?: {
@@ -138,7 +166,7 @@ ${wikiIndex}
 
 ## Available Wiki Tools
 
-You have wiki_read, wiki_write, wiki_list, wiki_search, wiki_sources tools.
+You have wiki_read, wiki_write, wiki_list, wiki_search, wiki_sources, wiki_update_index, wiki_log, and document_parse tools.
 Use them to interact with the wiki filesystem.
 When writing pages, always include YAML frontmatter (title, date, tags, source_count, last_updated).
 Use [[Page Title]] cross-references between related pages.`;
@@ -149,7 +177,7 @@ Use [[Page Title]] cross-references between related pages.`;
   if (config.plugins.codeSearch) toolNames.push('grep', 'find', 'ls');
 
   // MUST include custom tool names in allowedToolNames or they get filtered out
-  toolNames.push('wiki_read', 'wiki_write', 'wiki_list', 'wiki_search', 'wiki_sources', 'document_parse');
+  toolNames.push('wiki_read', 'wiki_write', 'wiki_list', 'wiki_search', 'wiki_sources', 'wiki_update_index', 'wiki_log', 'document_parse');
 
   const thinkingLevel = (opts?.thinkingLevel ?? config.thinkingLevel) as any;
 
@@ -170,7 +198,7 @@ Use [[Page Title]] cross-references between related pages.`;
     thinkingLevel,
     authStorage,
     tools: toolNames,
-    customTools: [wikiReadTool, wikiWriteTool, wikiListTool, wikiSearchTool, wikiSourcesTool],
+    customTools: [wikiReadTool, wikiWriteTool, wikiListTool, wikiSearchTool, wikiSourcesTool, wikiUpdateIndexTool, wikiLogTool],
     sessionManager: SessionManager.inMemory(),
     resourceLoader: loader,
   });
