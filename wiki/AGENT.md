@@ -26,8 +26,7 @@ Dispatch a chain:
 ```
 subagent({ chain: [
   { agent: "wiki-extractor", task: "Extract content from wiki/raw/[filename]" },
-  { agent: "wiki-page-writer", task: "Create wiki pages from this extracted content: {previous}" },
-  { agent: "wiki-reviewer", task: "Review the pages that were just created: {previous}" }
+  { agent: "wiki-page-writer", task: "Create wiki pages from this extracted content: {previous}" }
 ], clarify: false })
 ```
 
