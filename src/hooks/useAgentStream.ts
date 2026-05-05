@@ -93,6 +93,19 @@ export function useAgentStream(): UseAgentStreamResult {
                   : event.duration,
                 error: event.error,
               })
+            } else if (event.type === 'subagent_update') {
+              // Sub-agent text content update — show in main output
+              text += event.content
+              setOutput(text)
+            } else if (event.type === 'subagent_progress') {
+              addEntry({
+                id: nextId(),
+                type: 'subagent_progress',
+                timestamp: Date.now(),
+                agent: event.agent,
+                tool: event.tool,
+                output: event.output,
+              })
             } else if (event.type === 'text') {
               text += event.content
               setOutput(text)

@@ -151,9 +151,33 @@ ${wikiIndex}`;
       const status = e.isError ? '❌' : '✅';
       let result = '';
       if (e.result?.content?.[0]?.text) {
-        result = e.result.content[0].text.slice(0, 100).replace(/\n/g, ' ');
+        result = e.result.content[0].text.replace(/\n/g, ' ');
       }
       console.log(`  ${status} ${e.toolName} (${dur}s)${result ? ' → ' + result : ''}`);
+    } else if (event.type === 'tool_execution_update') {
+      const e = event as any;
+      if (e.toolName === 'subagent' && e.partialResult) {
+        const pr = e.partialResult;
+        // Log full text content from sub-agent progress
+        if (pr.content?.[0]?.text) {
+          const text = pr.content[0].text;
+          console.log(`\n  🔄 [subagent] ${text}`);
+        }
+        // Log detailed progress from sub-agent details
+        if (pr.details?.progress) {
+          for (const p of pr.details.progress) {
+            if (p.currentTool) {
+              const toolInfo = p.currentToolArgs ? `${p.currentTool}(${p.currentToolArgs})` : p.currentTool;
+              console.log(`    ⚡ [${p.agent}] ${toolInfo}`);
+            }
+            if (p.recentOutput?.length) {
+              for (const line of p.recentOutput) {
+                if (line.trim()) console.log(`    │ ${line}`);
+              }
+            }
+          }
+        }
+      }
     } else if (event.type === 'agent_start') {
       console.log(`\n  🧠 agent reasoning...`);
     } else if (event.type === 'agent_end') {

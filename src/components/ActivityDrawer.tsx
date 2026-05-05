@@ -3,12 +3,14 @@ import type { SessionStats } from '../hooks/useAgentStream'
 
 export interface LogEntry {
   id: string
-  type: 'separator' | 'tool_start' | 'tool_end' | 'text' | 'done' | 'error'
+  type: 'separator' | 'tool_start' | 'tool_end' | 'text' | 'done' | 'error' | 'subagent_progress'
   timestamp: number
   tool?: string
   preview?: string
   duration?: number
   error?: boolean
+  agent?: string
+  output?: string[]
 }
 
 interface Props {
@@ -94,6 +96,16 @@ export default function ActivityDrawer({ entries, stats }: Props) {
                   {entry.preview && (
                     <span className="activity-tool-output">{entry.preview}</span>
                   )}
+                </div>
+              )}
+              {entry.type === 'subagent_progress' && (
+                <div className="activity-subagent">
+                  <span className="activity-icon">🔄</span>
+                  <span className="activity-tool-name">[{entry.agent}]</span>
+                  {entry.tool && <span className="activity-tool-args"> ⚡ {entry.tool}</span>}
+                  {entry.output && entry.output.map((line, i) => (
+                    <div key={i} className="activity-subagent-line">│ {line}</div>
+                  ))}
                 </div>
               )}
               {entry.type === 'done' && (

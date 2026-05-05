@@ -38,7 +38,7 @@ function createEventForwarder(res: Response) {
       const duration = ((Date.now() - toolStart) / 1000).toFixed(2);
       let resultPreview = '';
       if (e.result?.content?.[0]?.text) {
-        resultPreview = e.result.content[0].text.slice(0, 200);
+        resultPreview = e.result.content[0].text;
       }
       res.write(`data: ${JSON.stringify({
         type: 'tool_end',
@@ -48,6 +48,26 @@ function createEventForwarder(res: Response) {
         result: resultPreview,
         elapsed,
       })}\n\n`);
+    } else if (e.type === 'tool_execution_update' && e.toolName === 'subagent') {
+      const pr = e.partialResult;
+      if (pr?.content?.[0]?.text) {
+        res.write(`data: ${JSON.stringify({
+          type: 'subagent_update',
+          content: pr.content[0].text,
+          elapsed,
+        })}\n\n`);
+      }
+      if (pr?.details?.progress) {
+        for (const p of pr.details.progress) {
+          const info: any = { type: 'subagent_progress', agent: p.agent, elapsed };
+          if (p.currentTool) info.tool = p.currentToolArgs ? `${p.currentTool}(${p.currentToolArgs})` : p.currentTool;
+          if (p.recentOutput?.length) info.output = p.recentOutput.filter((l: string) => l.trim());
+          if (p.toolCount) info.toolCount = p.toolCount;
+          if (p.tokens) info.tokens = p.tokens;
+          if (p.durationMs) info.durationMs = p.durationMs;
+          res.write(`data: ${JSON.stringify(info)}\n\n`);
+        }
+      }
     }
   };
 }
