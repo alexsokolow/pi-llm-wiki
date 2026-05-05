@@ -150,9 +150,13 @@ Use [[Page Title]] cross-references between related pages.`;
 
   const thinkingLevel = (opts?.thinkingLevel ?? config.thinkingLevel) as any;
 
+  // Load pi-docparser extension for PDF/DOCX parsing
+  const docparserExtPath = path.resolve('node_modules/pi-docparser/extensions/docparser/index.ts');
+
   const loader = new DefaultResourceLoader({
     cwd: process.cwd(),
     agentDir,
+    additionalExtensionPaths: [docparserExtPath],
     systemPromptOverride: () => systemPrompt,
   });
   await loader.reload();

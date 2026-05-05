@@ -106,6 +106,7 @@ router.delete('/agent/sessions/:id', (req, res) => {
 // --- Legacy compatibility: /api/agent/ingest and /api/agent/query ---
 // These create a one-shot session, prompt it, stream the result, then destroy
 
+
 router.post('/agent/ingest', async (req, res) => {
   try {
     const { filename } = req.body;
@@ -114,41 +115,15 @@ router.post('/agent/ingest', async (req, res) => {
       return;
     }
 
-    // Pre-extract text from binary files (PDF, DOCX)
-    const { readFile } = await import('fs/promises');
+    // Verify the file exists
+    const { access } = await import('fs/promises');
     const filePath = path.resolve('wiki/raw', filename);
-    const ext = path.extname(filename).toLowerCase();
-    let sourceText = '';
-
-    try {
-      if (ext === '.pdf') {
-        const pdfParse = (await import('pdf-parse')).default;
-        const buffer = await readFile(filePath);
-        const data = await pdfParse(buffer);
-        sourceText = data.text;
-      } else if (ext === '.docx') {
-        const mammoth = await import('mammoth');
-        const result = await mammoth.default.extractRawText({ path: filePath });
-        sourceText = result.value;
-      } else {
-        sourceText = await readFile(filePath, 'utf-8');
-      }
-    } catch (e) {
-      res.status(400).json({ error: `Failed to extract text from ${filename}: ${e}` });
+    try { await access(filePath); } catch {
+      res.status(404).json({ error: `File not found: wiki/raw/${filename}` });
       return;
     }
 
-    if (!sourceText.trim()) {
-      res.status(400).json({ error: `No text could be extracted from ${filename}` });
-      return;
-    }
-
-    // Cap content for the LLM context
-    if (sourceText.length > 15000) {
-      sourceText = sourceText.slice(0, 10000) + '\n\n[... content truncated ...]\n\n' + sourceText.slice(-5000);
-    }
-
-    console.log(`\n📄 Ingesting: ${filename} (${sourceText.length} chars extracted)`);
+    console.log(`\n📄 Ingesting: ${filename} (using document_parse)`);
 
     const { sessionId, session } = await createWikiSession();
 
@@ -172,22 +147,18 @@ router.post('/agent/ingest', async (req, res) => {
 
     req.on('close', () => { entry.subscribers.delete(send); });
 
-    const prompt = `Ingest this document into the wiki.
+    const prompt = `Ingest the document "${filename}" into the wiki.
 
-Source file: ${filename}
+The file is located at: ${filePath}
 
-Extracted text content:
----
-${sourceText}
----
-
-Your task:
-1. Use wiki_list() to see existing pages
-2. Create a source summary page using wiki_write()
-3. Create entity pages for key people, orgs, equipment, systems
-4. Create concept pages for methods, standards, processes
-5. Add [[cross-references]] between related pages
-6. Be thorough — create 5-15 pages from this source`;
+Steps:
+1. Use document_parse({ path: "${filePath}" }) to extract the text content
+2. Use wiki_list() to check existing pages and avoid duplicates
+3. Create a source summary page using wiki_write()
+4. Create entity pages for key people, orgs, equipment, systems
+5. Create concept pages for methods, standards, processes
+6. Add [[cross-references]] between related pages
+7. Be thorough — create 5-15 pages from this source`;
 
     await session.prompt(prompt);
     res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
@@ -199,6 +170,7 @@ Your task:
     else res.status(500).json({ error: String(err) });
   }
 });
+
 
 router.post('/agent/query', async (req, res) => {
   try {
