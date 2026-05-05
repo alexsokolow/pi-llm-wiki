@@ -1,5 +1,7 @@
 {
   "packages": [
     "npm:pi-docparser"
-  ]
+  ],
+  "defaultModel": "moonshotai/kimi-k2.6",
+  "defaultProvider": "openrouter"
 }
