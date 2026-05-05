@@ -28,11 +28,11 @@ interface GraphData {
 }
 
 const TYPE_COLORS: Record<string, string> = {
-  source: '#ff9d00',
+  source: '#58a6ff',
   entity: '#3fb950',
-  concept: '#00ffcc',
-  synthesis: '#ff4444',
-  unknown: '#8b949e',
+  concept: '#79c0ff',
+  synthesis: '#f47067',
+  unknown: '#484f58',
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -140,7 +140,7 @@ export default function WikiGraph() {
       .data(simNodes)
       .join('circle')
       .attr('r', (d) => sizeScale(d.wordCount))
-      .attr('fill', (d) => TYPE_COLORS[d.type] || '#8b949e')
+      .attr('fill', (d) => TYPE_COLORS[d.type] || '#484f58')
       .attr('stroke', '#0d1117')
       .attr('stroke-width', 1.5)
       .style('cursor', 'pointer')
@@ -223,7 +223,7 @@ export default function WikiGraph() {
           <button className={`filter-btn ${filter === 'all' ? 'active' : ''}`} onClick={() => setFilter('all')}>
             all
           </button>
-          {(['source', 'entity', 'concept', 'synthesis'] as const).map((t) => (
+          {['source', 'entity', 'concept', 'synthesis'].map((t) => (
             <button
               key={t}
               className={`filter-btn ${filter === t ? 'active' : ''}`}

@@ -249,6 +249,7 @@ export async function listModels(): Promise<{ provider: Provider; models: string
         'anthropic/claude-3.5-haiku-20241022',
         'openai/gpt-4o-mini',
         'meta-llama/llama-3.3-70b-instruct',
+        'tencent/hy3-preview:free',
       ],
     });
   }
