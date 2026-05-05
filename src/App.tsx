@@ -4,10 +4,11 @@ import WikiBrowser from './pages/WikiBrowser'
 import IngestView from './pages/IngestView'
 import QueryView from './pages/QueryView'
 import ExploreView from './pages/ExploreView'
+import SettingsView from './pages/SettingsView'
 
 import WikiGraph from './components/WikiGraph'
 
-type View = 'browser' | 'ingest' | 'query' | 'explore' | 'graph'
+type View = 'browser' | 'ingest' | 'query' | 'explore' | 'graph' | 'config'
 
 export default function App() {
   const [view, setView] = useState<View>('browser')
@@ -18,6 +19,7 @@ export default function App() {
     { key: 'ingest', label: '[ingest]' },
     { key: 'query', label: '[query]' },
     { key: 'explore', label: '[explore]' },
+    { key: 'config', label: '[config]' },
   ]
 
   return (
@@ -42,6 +44,7 @@ export default function App() {
       {view === 'ingest' && <IngestView />}
       {view === 'query' && <QueryView />}
       {view === 'explore' && <ExploreView />}
+      {view === 'config' && <SettingsView />}
     </TerminalLayout>
   )
 }
