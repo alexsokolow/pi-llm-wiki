@@ -2,16 +2,13 @@ import {
   AuthStorage,
   createAgentSession,
   DefaultResourceLoader,
-  defineTool,
   SessionManager,
   type AgentSession,
   type AgentSessionEvent,
 } from '@mariozechner/pi-coding-agent';
-import { Type } from '@sinclair/typebox';
 import { homedir } from 'os';
 import path from 'path';
 import { readFile } from 'fs/promises';
-import * as wikiFs from './wiki-fs.js';
 import { loadConfig } from './config.js';
 
 // ─── Session Store ───────────────────────────────────────────────────────────
@@ -46,101 +43,6 @@ export function deleteSession(id: string): void {
   }
 }
 
-// ─── Wiki Custom Tools ───────────────────────────────────────────────────────
-
-const wikiReadTool = defineTool({
-  name: 'wiki_read',
-  label: 'Wiki Read',
-  description: 'Read a wiki page by relative path (e.g. "concepts/water-for-injection.md")',
-  parameters: Type.Object({
-    path: Type.String({ description: 'Relative path under wiki/pages/' }),
-  }),
-  execute: async (_toolCallId, params) => ({
-    content: [{ type: 'text', text: await wikiFs.readPage(params.path).catch(() => '(page not found)') }],
-    details: {},
-  }),
-});
-
-const wikiWriteTool = defineTool({
-  name: 'wiki_write',
-  label: 'Wiki Write',
-  description: 'Write/create a wiki page at a given path with full markdown content',
-  parameters: Type.Object({
-    path: Type.String({ description: 'Relative path, e.g. "entities/my-page.md"' }),
-    content: Type.String({ description: 'Full markdown content (include YAML frontmatter)' }),
-  }),
-  execute: async (_toolCallId, params) => {
-    await wikiFs.writePage(params.path, params.content);
-    return { content: [{ type: 'text', text: `Wrote wiki/pages/${params.path}` }], details: {} };
-  },
-});
-
-const wikiListTool = defineTool({
-  name: 'wiki_list',
-  label: 'Wiki List',
-  description: 'List all wiki page paths',
-  parameters: Type.Object({}),
-  execute: async () => ({
-    content: [{ type: 'text', text: JSON.stringify(await wikiFs.listPages(), null, 2) }],
-    details: {},
-  }),
-});
-
-const wikiSearchTool = defineTool({
-  name: 'wiki_search',
-  label: 'Wiki Search',
-  description: 'Search wiki pages by keyword. Returns matching paths and previews.',
-  parameters: Type.Object({
-    query: Type.String({ description: 'Search keywords' }),
-  }),
-  execute: async (_toolCallId, params) => {
-    const results = await wikiFs.searchWiki(params.query);
-    const text = results.length
-      ? results.map((r) => `--- ${r.path} ---\n${r.preview}`).join('\n\n')
-      : '(no results)';
-    return { content: [{ type: 'text', text }], details: {} };
-  },
-});
-
-const wikiSourcesTool = defineTool({
-  name: 'wiki_sources',
-  label: 'Wiki Sources',
-  description: 'List uploaded raw source filenames in wiki/raw/',
-  parameters: Type.Object({}),
-  execute: async () => ({
-    content: [{ type: 'text', text: JSON.stringify(await wikiFs.listSources(), null, 2) }],
-    details: {},
-  }),
-});
-
-const wikiUpdateIndexTool = defineTool({
-  name: 'wiki_update_index',
-  label: 'Wiki Update Index',
-  description: 'Rewrite wiki/index.md with a full catalog of all pages. Pass the complete new index content.',
-  parameters: Type.Object({
-    content: Type.String({ description: 'Full markdown content for index.md (catalog of all pages with summaries)' }),
-  }),
-  execute: async (_toolCallId, params) => {
-    await wikiFs.writeWikiFile('index.md', params.content);
-    return { content: [{ type: 'text', text: 'Updated wiki/index.md' }], details: {} };
-  },
-});
-
-const wikiLogTool = defineTool({
-  name: 'wiki_log',
-  label: 'Wiki Log',
-  description: 'Append an entry to wiki/log.md. Use format: ## [YYYY-MM-DD] operation | description',
-  parameters: Type.Object({
-    entry: Type.String({ description: 'Log entry to append, e.g. "## [2026-05-05] ingest | Paper Title\\n\\nProcessed source, created N pages."' }),
-  }),
-  execute: async (_toolCallId, params) => {
-    const current = await wikiFs.readWikiFile('log.md').catch(() => '# Wiki Log\n');
-    await wikiFs.writeWikiFile('log.md', current + '\n' + params.entry + '\n');
-    return { content: [{ type: 'text', text: 'Appended to wiki/log.md' }], details: {} };
-  },
-});
-
-
 // ─── Session Factory ─────────────────────────────────────────────────────────
 
 export async function createWikiSession(opts?: {
@@ -154,7 +56,7 @@ export async function createWikiSession(opts?: {
 
   // Build system prompt from wiki/AGENT.md (the wiki agent's instructions)
   const agentsMd = await readFile('wiki/AGENT.md', 'utf-8').catch(() => '');
-  const wikiIndex = await wikiFs.readWikiFile('index.md').catch(() => '');
+  const wikiIndex = await readFile('wiki/index.md', 'utf-8').catch(() => '');
   const systemPrompt = `${agentsMd}
 
 ---
@@ -164,20 +66,14 @@ export async function createWikiSession(opts?: {
 Index:
 ${wikiIndex}
 
-## Available Wiki Tools
+## Skills Available
 
-You have wiki_read, wiki_write, wiki_list, wiki_search, wiki_sources, wiki_update_index, wiki_log, and document_parse tools.
-Use them to interact with the wiki filesystem.
-When writing pages, always include YAML frontmatter (title, date, tags, source_count, last_updated).
-Use [[Page Title]] cross-references between related pages.`;
+You have skills loaded that teach you wiki operations and document extraction conventions.
+Use the built-in file tools (read, write, edit, bash) plus document_parse for all wiki work.`;
 
-  // Determine tools based on config plugins
-  const toolNames: string[] = ['read'];
-  if (config.plugins.fileSystem) toolNames.push('bash', 'edit', 'write');
-  if (config.plugins.codeSearch) toolNames.push('grep', 'find', 'ls');
-
-  // MUST include custom tool names in allowedToolNames or they get filtered out
-  toolNames.push('wiki_read', 'wiki_write', 'wiki_list', 'wiki_search', 'wiki_sources', 'wiki_update_index', 'wiki_log', 'document_parse');
+  // Base tools — skills teach the agent how to use these for wiki operations
+  const toolNames: string[] = ['read', 'bash', 'edit', 'write'];
+  toolNames.push('document_parse');
 
   const thinkingLevel = (opts?.thinkingLevel ?? config.thinkingLevel) as any;
 
@@ -188,6 +84,26 @@ Use [[Page Title]] cross-references between related pages.`;
     cwd: process.cwd(),
     agentDir,
     additionalExtensionPaths: [docparserExtPath],
+    skillsOverride: (current) => ({
+      skills: [
+        ...current.skills,
+        {
+          name: 'document-extraction',
+          description: 'Extract text from PDF, DOCX, images using document_parse',
+          filePath: path.resolve('wiki/skills/document-extraction/SKILL.md'),
+          baseDir: path.resolve('wiki/skills/document-extraction'),
+          source: 'project',
+        },
+        {
+          name: 'wiki-operations',
+          description: 'Conventions for wiki page creation, index, log, cross-references',
+          filePath: path.resolve('wiki/skills/wiki-operations/SKILL.md'),
+          baseDir: path.resolve('wiki/skills/wiki-operations'),
+          source: 'project',
+        },
+      ],
+      diagnostics: current.diagnostics,
+    }),
     systemPromptOverride: () => systemPrompt,
   });
   await loader.reload();
@@ -198,7 +114,6 @@ Use [[Page Title]] cross-references between related pages.`;
     thinkingLevel,
     authStorage,
     tools: toolNames,
-    customTools: [wikiReadTool, wikiWriteTool, wikiListTool, wikiSearchTool, wikiSourcesTool, wikiUpdateIndexTool, wikiLogTool],
     sessionManager: SessionManager.inMemory(),
     resourceLoader: loader,
   });
