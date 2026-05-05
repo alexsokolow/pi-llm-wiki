@@ -58,4 +58,13 @@ router.get('/log', async (_req, res) => {
   }
 });
 
+router.post('/reset', async (_req, res) => {
+  try {
+    await wikiFs.resetWiki();
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
 export default router;

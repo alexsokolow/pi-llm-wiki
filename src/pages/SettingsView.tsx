@@ -23,6 +23,7 @@ export default function SettingsView() {
   const [models, setModels] = useState<AvailableModel[]>([])
   const [status, setStatus] = useState('')
   const [loadingModels, setLoadingModels] = useState(true)
+  const [resetting, setResetting] = useState(false)
 
   useEffect(() => {
     fetch('/api/config').then(r => r.json()).then(setConfig)
@@ -135,6 +136,36 @@ export default function SettingsView() {
       <div className="settings-actions">
         <button className="btn" onClick={save}>SAVE</button>
         {status && <span className="status-line">&gt; {status}</span>}
+      </div>
+
+      <div className="settings-section" style={{ marginTop: '2rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
+        <div className="settings-label">Danger Zone</div>
+        <button
+          className="btn"
+          style={{ background: 'var(--error, #c62828)', color: '#fff' }}
+          disabled={resetting}
+          onClick={async () => {
+            if (!confirm('Reset wiki? This will delete all pages, index, and log. Raw source files are kept.')) return
+            setResetting(true)
+            try {
+              const res = await fetch('/api/wiki/reset', { method: 'POST' })
+              if (res.ok) {
+                setStatus('✅ wiki reset')
+              } else {
+                setStatus('❌ reset failed')
+              }
+            } catch {
+              setStatus('❌ reset failed')
+            }
+            setResetting(false)
+            setTimeout(() => setStatus(''), 3000)
+          }}
+        >
+          {resetting ? 'RESETTING...' : 'RESET WIKI'}
+        </button>
+        <div className="empty" style={{ marginTop: '0.5rem', fontSize: '0.8rem' }}>
+          Deletes all pages, index, and log. Raw source files in wiki/raw/ are kept.
+        </div>
       </div>
     </div>
   )

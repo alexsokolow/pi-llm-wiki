@@ -83,6 +83,30 @@ export async function writeWikiFile(relPath: string, content: string): Promise<v
   await fs.writeFile(full, content, 'utf-8');
 }
 
+export async function resetWiki(): Promise<void> {
+  // Clear all pages
+  const categories = ['sources', 'entities', 'concepts', 'syntheses'];
+  for (const cat of categories) {
+    const dir = path.join(PAGES_ROOT, cat);
+    try {
+      const entries = await fs.readdir(dir);
+      for (const entry of entries) {
+        await fs.rm(path.join(dir, entry), { recursive: true, force: true });
+      }
+    } catch {
+      // directory might not exist
+    }
+  }
+
+  // Reset index.md
+  await fs.writeFile(path.join(WIKI_ROOT, 'index.md'),
+`# Wiki Index\n\n## Sources\n_(none yet)_\n\n## Entities\n_(none yet)_\n\n## Concepts\n_(none yet)_\n\n## Syntheses\n_(none yet)_\n`, 'utf-8');
+
+  // Reset log.md
+  await fs.writeFile(path.join(WIKI_ROOT, 'log.md'),
+`# Wiki Log\n\nChronological record of all operations.\n`, 'utf-8');
+}
+
 export async function searchWiki(query: string): Promise<{ path: string; preview: string }[]> {
   const pages = await listPages();
   const results: { path: string; preview: string; score: number }[] = [];
