@@ -135,6 +135,8 @@ ${wikiIndex}`;
   const subscribers = new Set<(e: AgentSessionEvent) => void>();
 
   const toolTimers = new Map<string, number>();
+  // Track sub-agent progress to only print deltas
+  const subagentState = new Map<string, { outputLen: number; toolCount: number; lastTool: string }>();
 
   const unsubscribe = session.subscribe((event) => {
     // Server-side logging (pi CLI-style verbose)
@@ -158,18 +160,41 @@ ${wikiIndex}`;
       const e = event as any;
       if (e.toolName === 'subagent' && e.partialResult) {
         const pr = e.partialResult;
-        // Log detailed progress from sub-agent details (tool calls, recent output)
-        if (pr.details?.progress) {
-          for (const p of pr.details.progress) {
-            if (p.currentTool) {
+        const details = pr.details;
+        // Show chain step progress
+        if (details?.currentStepIndex !== undefined) {
+          const agents = details.chainAgents || [];
+          const step = details.currentStepIndex;
+          const total = details.totalSteps || agents.length;
+          const current = agents[step] || 'agent';
+          // Only print step transition once
+          const stepKey = `step-${step}`;
+          if (!subagentState.has(stepKey)) {
+            subagentState.set(stepKey, { outputLen: 0, toolCount: 0, lastTool: '' });
+            console.log(`\n  → [step ${step + 1}/${total}] ${current}`);
+          }
+        }
+        // Log new tool calls and output from sub-agents
+        if (details?.progress) {
+          for (const p of details.progress) {
+            const key = `${p.agent}-${p.index || 0}`;
+            const prev = subagentState.get(key) || { outputLen: 0, toolCount: 0, lastTool: '' };
+            // Print new tool call
+            if (p.currentTool && p.currentTool !== prev.lastTool) {
               const toolInfo = p.currentToolArgs ? `${p.currentTool}(${p.currentToolArgs})` : p.currentTool;
               console.log(`    ⚡ [${p.agent}] ${toolInfo}`);
+              prev.lastTool = p.currentTool;
             }
-            if (p.recentOutput?.length) {
-              for (const line of p.recentOutput) {
+            // Print new output lines only
+            if (p.recentOutput?.length > prev.outputLen) {
+              const newLines = p.recentOutput.slice(prev.outputLen);
+              for (const line of newLines) {
                 if (line.trim()) console.log(`    │ ${line}`);
               }
+              prev.outputLen = p.recentOutput.length;
             }
+            if (p.toolCount) prev.toolCount = p.toolCount;
+            subagentState.set(key, prev);
           }
         }
       }

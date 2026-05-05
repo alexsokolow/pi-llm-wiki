@@ -18,6 +18,9 @@ const router = Router();
 function createEventForwarder(res: Response) {
   const startTime = Date.now();
   const toolTimers = new Map<string, number>();
+  // Track sub-agent state for delta-only streaming
+  const subagentState = new Map<string, { outputLen: number; toolCount: number; lastTool: string }>();
+  let lastStepIndex = -1;
 
   return (e: any) => {
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
@@ -50,22 +53,42 @@ function createEventForwarder(res: Response) {
       })}\n\n`);
     } else if (e.type === 'tool_execution_update' && e.toolName === 'subagent') {
       const pr = e.partialResult;
-      if (pr?.content?.[0]?.text) {
+      if (!pr?.details) return;
+      const details = pr.details;
+      // Emit chain step transitions
+      if (details.currentStepIndex !== undefined && details.currentStepIndex !== lastStepIndex) {
+        lastStepIndex = details.currentStepIndex;
+        const agents = details.chainAgents || [];
+        const current = agents[details.currentStepIndex] || 'agent';
         res.write(`data: ${JSON.stringify({
-          type: 'subagent_update',
-          content: pr.content[0].text,
+          type: 'subagent_step',
+          step: details.currentStepIndex + 1,
+          totalSteps: details.totalSteps || agents.length,
+          agent: current,
           elapsed,
         })}\n\n`);
       }
-      if (pr?.details?.progress) {
-        for (const p of pr.details.progress) {
-          const info: any = { type: 'subagent_progress', agent: p.agent, elapsed };
-          if (p.currentTool) info.tool = p.currentToolArgs ? `${p.currentTool}(${p.currentToolArgs})` : p.currentTool;
-          if (p.recentOutput?.length) info.output = p.recentOutput.filter((l: string) => l.trim());
-          if (p.toolCount) info.toolCount = p.toolCount;
-          if (p.tokens) info.tokens = p.tokens;
-          if (p.durationMs) info.durationMs = p.durationMs;
-          res.write(`data: ${JSON.stringify(info)}\n\n`);
+      // Emit new tool calls and output lines (delta only)
+      if (details.progress) {
+        for (const p of details.progress) {
+          const key = `${p.agent}-${p.index || 0}`;
+          const prev = subagentState.get(key) || { outputLen: 0, toolCount: 0, lastTool: '' };
+          const updates: any = { type: 'subagent_progress', agent: p.agent, elapsed };
+          let hasNew = false;
+          if (p.currentTool && p.currentTool !== prev.lastTool) {
+            updates.tool = p.currentToolArgs ? `${p.currentTool}(${p.currentToolArgs})` : p.currentTool;
+            prev.lastTool = p.currentTool;
+            hasNew = true;
+          }
+          if (p.recentOutput?.length > prev.outputLen) {
+            updates.output = p.recentOutput.slice(prev.outputLen).filter((l: string) => l.trim());
+            prev.outputLen = p.recentOutput.length;
+            hasNew = true;
+          }
+          if (hasNew) {
+            subagentState.set(key, prev);
+            res.write(`data: ${JSON.stringify(updates)}\n\n`);
+          }
         }
       }
     }
