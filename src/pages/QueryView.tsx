@@ -15,7 +15,7 @@ export default function QueryView() {
   const outputRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    fetch('/api/ollama/models')
+    fetch('/api/models')
       .then(r => r.json())
       .then(data => {
         const p = data.providers || []
@@ -48,7 +48,7 @@ export default function QueryView() {
     const q = question.trim()
     setHistory(h => [...h, q])
     setQuestion('')
-    const res = await fetch('/api/ollama/query', {
+    const res = await fetch('/api/agent/query', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ question: q, model, provider }),

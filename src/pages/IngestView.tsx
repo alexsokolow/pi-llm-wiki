@@ -34,7 +34,7 @@ export default function IngestView() {
   }
 
   const fetchModels = () => {
-    fetch('/api/ollama/models')
+    fetch('/api/models')
       .then(r => r.json())
       .then(data => {
         const p = data.providers || []
@@ -109,7 +109,7 @@ export default function IngestView() {
     setOutput(`Extracted ${chars} chars. Sending to ${provider}/${model}...\n\n`)
 
     // Now send to the LLM for wiki ingest
-    const res = await fetch('/api/ollama/ingest', {
+    const res = await fetch('/api/agent/ingest', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ filename: selected, model, provider }),
