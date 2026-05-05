@@ -142,8 +142,7 @@ ${wikiIndex}`;
       const e = event as any;
       toolTimers.set(e.toolCallId, Date.now());
       const args = e.args ? JSON.stringify(e.args) : '';
-      const argsShort = args.length > 120 ? args.slice(0, 120) + '...' : args;
-      console.log(`\n  ⚡ ${e.toolName} ${argsShort}`);
+      console.log(`\n  ⚡ ${e.toolName} ${args}`);
     } else if (event.type === 'tool_execution_end') {
       const e = event as any;
       const start = toolTimers.get(e.toolCallId) || Date.now();
