@@ -3,6 +3,19 @@ import * as wikiFs from '../lib/wiki-fs.js';
 
 const router = Router();
 
+// Reset must be before any catch-all routes
+router.post('/reset', async (_req, res) => {
+  try {
+    console.log('  \ud83d\uddd1\ufe0f  Wiki reset requested');
+    await wikiFs.resetWiki();
+    console.log('  \u2705 Wiki reset complete');
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('  \u274c Wiki reset failed:', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
 router.get('/pages', async (_req, res) => {
   try {
     const pages = await wikiFs.listPages();
@@ -54,18 +67,6 @@ router.get('/log', async (_req, res) => {
     const content = await wikiFs.readWikiFile('log.md');
     res.json({ content });
   } catch (err) {
-    res.status(500).json({ error: String(err) });
-  }
-});
-
-router.post('/reset', async (_req, res) => {
-  try {
-    console.log('  🗑️  Wiki reset requested');
-    await wikiFs.resetWiki();
-    console.log('  ✅ Wiki reset complete');
-    res.json({ ok: true });
-  } catch (err) {
-    console.error('  ❌ Wiki reset failed:', err);
     res.status(500).json({ error: String(err) });
   }
 });
