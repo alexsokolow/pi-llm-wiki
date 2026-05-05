@@ -8,6 +8,8 @@ import {
   type AgentSessionEvent,
 } from '@mariozechner/pi-coding-agent';
 import { Type } from '@sinclair/typebox';
+import { homedir } from 'os';
+import path from 'path';
 import { readFile } from 'fs/promises';
 import * as wikiFs from './wiki-fs.js';
 import { loadConfig } from './config.js';
@@ -119,7 +121,8 @@ export async function createWikiSession(opts?: {
   thinkingLevel?: string;
 }): Promise<{ sessionId: string; session: AgentSession }> {
   const config = await loadConfig();
-  const authStorage = AuthStorage.create();
+  const agentDir = path.join(homedir(), '.pi', 'agent');
+  const authStorage = AuthStorage.create(path.join(agentDir, 'auth.json'));
 
   // Build system prompt from wiki/AGENT.md (the wiki agent's instructions)
   const agentsMd = await readFile('wiki/AGENT.md', 'utf-8').catch(() => '');
@@ -149,12 +152,14 @@ Use [[Page Title]] cross-references between related pages.`;
 
   const loader = new DefaultResourceLoader({
     cwd: process.cwd(),
+    agentDir,
     systemPromptOverride: () => systemPrompt,
   });
   await loader.reload();
 
   const { session } = await createAgentSession({
     cwd: process.cwd(),
+    agentDir,
     thinkingLevel,
     authStorage,
     tools: toolNames,

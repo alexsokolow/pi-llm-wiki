@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { AuthStorage, ModelRegistry } from '@mariozechner/pi-coding-agent';
+import { homedir } from 'os';
+import path from 'path';
 import {
   createWikiSession,
   getSession,
@@ -13,8 +15,9 @@ const router = Router();
 // GET /api/models — list available models from Pi's ModelRegistry
 router.get('/models', async (_req, res) => {
   try {
-    const authStorage = AuthStorage.create();
-    const registry = ModelRegistry.create(authStorage);
+    const agentDir = path.join(homedir(), '.pi', 'agent');
+    const authStorage = AuthStorage.create(path.join(agentDir, 'auth.json'));
+    const registry = ModelRegistry.create(authStorage, path.join(agentDir, 'models.json'));
     const available = await registry.getAvailable();
     res.json({ models: available });
   } catch (err) {
