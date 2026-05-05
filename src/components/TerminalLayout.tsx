@@ -4,9 +4,10 @@ interface Props {
   header: string
   nav: ReactNode
   children: ReactNode
+  drawer?: ReactNode
 }
 
-export default function TerminalLayout({ header, nav, children }: Props) {
+export default function TerminalLayout({ header, nav, children, drawer }: Props) {
   return (
     <div className="terminal">
       <div className="scanlines" />
@@ -15,6 +16,7 @@ export default function TerminalLayout({ header, nav, children }: Props) {
       </header>
       {nav}
       <main className="terminal-main">{children}</main>
+      {drawer}
       <footer className="terminal-footer">
         <span className="cursor">█</span> pi-powered wiki
       </footer>
