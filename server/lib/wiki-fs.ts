@@ -100,11 +100,27 @@ export async function resetWiki(): Promise<void> {
 
   // Reset index.md
   await fs.writeFile(path.join(WIKI_ROOT, 'index.md'),
-`# Wiki Index\n\n## Sources\n_(none yet)_\n\n## Entities\n_(none yet)_\n\n## Concepts\n_(none yet)_\n\n## Syntheses\n_(none yet)_\n`, 'utf-8');
+`# Wiki Index
+
+## Sources
+_(none yet)_
+
+## Entities
+_(none yet)_
+
+## Concepts
+_(none yet)_
+
+## Syntheses
+_(none yet)_
+`, 'utf-8');
 
   // Reset log.md
   await fs.writeFile(path.join(WIKI_ROOT, 'log.md'),
-`# Wiki Log\n\nChronological record of all operations.\n`, 'utf-8');
+`# Wiki Log
+
+Chronological record of all operations.
+`, 'utf-8');
 }
 
 export async function searchWiki(query: string): Promise<{ path: string; preview: string }[]> {
