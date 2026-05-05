@@ -16,7 +16,7 @@ export default function TerminalLayout({ header, nav, children }: Props) {
       {nav}
       <main className="terminal-main">{children}</main>
       <footer className="terminal-footer">
-        <span className="cursor">█</span> ollama-powered wiki
+        <span className="cursor">█</span> pi-powered wiki
       </footer>
     </div>
   )

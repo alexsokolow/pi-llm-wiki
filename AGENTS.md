@@ -1,72 +1,29 @@
-# LLM Wiki — Agent Schema
+# Agent Configuration for Pi
 
-You are a disciplined wiki maintainer. Your job is to incrementally build and maintain a structured, interlinked markdown knowledge base from raw source documents. Follow these conventions precisely.
+When working on this codebase, the agent MUST use the superpowers skills workflow for any multi-step task:
 
-## Directory Structure
+1. **Brainstorming** (`/skill:brainstorming`) — Explore requirements and approaches before implementation.
+2. **Writing Plans** (`/skill:writing-plans`) — Draft implementation plans with bite-sized tasks before touching code.
+3. **Test-Driven Development** (`/skill:test-driven-development`) — Write tests before implementation for any feature.
+4. **Executing Plans** (`/skill:executing-plans`) or **Subagent-Driven Development** (`/skill:subagent-driven-development`) — Execute plans systematically.
+5. **Verification Before Completion** (`/skill:verification-before-completion`) — Run verification commands and confirm output before claiming done.
+6. **Code Review** (`/skill:requesting-code-review`, `/skill:receiving-code-review`) — Review all non-trivial changes.
+7. **Finishing Development** (`/skill:finishing-a-development-branch`) — Properly close branches/PRs.
 
-- `wiki/raw/` — Immutable source documents. Read only, never modify.
-- `wiki/pages/entities/` — Pages about people, organizations, products, places.
-- `wiki/pages/concepts/` — Pages about ideas, frameworks, methodologies, theories.
-- `wiki/pages/sources/` — Summary pages for each ingested source.
-- `wiki/pages/syntheses/` — Pages that resolve contradictions or compare multiple sources.
-- `wiki/index.md` — Master catalog of all pages, organized by category.
-- `wiki/log.md` — Chronological append-only record of all operations.
+Always prefer structured skill-driven workflow over ad-hoc manual coding.
+Prefer TDD for any new feature or bugfix.
+Prefer subagent execution for plans with independent tasks.
 
-## Page Format
+**Using skills:** Read the skill file (via `read`) before invoking its workflow. Skill files contain detailed instructions and constraints.
 
-Every page must start with YAML frontmatter:
+## Memory (Honcho)
 
-```yaml
----
-title: "Page Title"
-date: "YYYY-MM-DD"
-tags: ["tag1", "tag2"]
-source_count: 1
-last_updated: "YYYY-MM-DD"
----
-```
+- `honcho_search` — Use for factual recall of past conversations or decisions.
+- `honcho_chat` — Use for reasoning over memory (patterns, preferences, deeper questions).
+- `honcho_remember` — Use only for durable preferences, conventions, or decisions worth persisting. Do not save secrets, tokens, or transient debugging details.
 
-## Cross-References
+## Research
 
-- Always use `[[Page Title]]` to link to other wiki pages.
-- If a referenced page does not exist, create it with a stub description.
-- Never silently remove or break existing links when updating pages.
-
-## Contradictions
-
-When new data contradicts existing claims:
-1. Flag the contradiction inline: `(⚠️ contradiction: source X says A, source Y says B)`
-2. Create or update a synthesis page in `wiki/pages/syntheses/` to resolve it.
-
-## Tone
-
-Objective, synthesized, third-person. Avoid hedging language. State what the sources say and link to the source page.
-
-## Ingest Workflow
-
-For each new source:
-1. Read the source and extract key takeaways.
-2. Write a summary page in `wiki/pages/sources/<slug>.md`.
-3. Update or create entity and concept pages for key nouns.
-4. Add cross-references between related pages.
-5. Update `wiki/index.md` with new/modified entries.
-6. Append a dated entry to `wiki/log.md`.
-
-A single source typically touches 5–15 wiki pages.
-
-## Query Workflow
-
-When answering questions:
-1. Read `wiki/index.md` to find relevant pages.
-2. Read those pages and synthesize an answer.
-3. Cite pages using `[[Page Title]]`.
-4. If the answer reveals a new insight, suggest filing it as a wiki page.
-
-## Lint Workflow
-
-When health-checking the wiki, look for:
-- Contradictions between pages
-- Stale claims superseded by newer sources
-- Orphan pages with no inbound links
-- Key concepts mentioned but lacking their own page
-- Missing cross-references
+- `web_search` — Use for web research. Prefer `{queries: [...]}` with 2–4 varied angles over a single query for broader coverage.
+- `code_search` — Use for programming/API/library questions to retrieve concrete examples and docs before implementing or debugging code.
+- `fetch_content` — Use to extract content from URLs, YouTube, GitHub repos, or local videos. For video questions, pass the user's exact question in `prompt`.

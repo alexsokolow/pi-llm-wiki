@@ -108,7 +108,7 @@ export default function IngestView() {
     const { chars } = await extractRes.json() as { text: string; chars: number }
     setOutput(`Extracted ${chars} chars. Sending to ${provider}/${model}...\n\n`)
 
-    // Now send to the LLM for wiki ingest
+    // Now send to the agent for wiki ingest
     const res = await fetch('/api/agent/ingest', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
