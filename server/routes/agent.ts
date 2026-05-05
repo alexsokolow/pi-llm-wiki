@@ -18,9 +18,6 @@ const router = Router();
 function createEventForwarder(res: Response) {
   const startTime = Date.now();
   const toolTimers = new Map<string, number>();
-  // Track sub-agent state for delta-only streaming
-  const subagentState = new Map<string, { outputLen: number; toolCount: number; lastTool: string }>();
-  let lastStepIndex = -1;
 
   return (e: any) => {
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
@@ -29,7 +26,7 @@ function createEventForwarder(res: Response) {
       res.write(`data: ${JSON.stringify({ type: 'text', content: e.assistantMessageEvent.delta })}\n\n`);
     } else if (e.type === 'tool_execution_start') {
       toolTimers.set(e.toolCallId, Date.now());
-      const argsPreview = e.args ? JSON.stringify(e.args).slice(0, 300) : '';
+      const argsPreview = e.args ? JSON.stringify(e.args) : '';
       res.write(`data: ${JSON.stringify({
         type: 'tool_start',
         tool: e.toolName,
@@ -39,58 +36,18 @@ function createEventForwarder(res: Response) {
     } else if (e.type === 'tool_execution_end') {
       const toolStart = toolTimers.get(e.toolCallId) || startTime;
       const duration = ((Date.now() - toolStart) / 1000).toFixed(2);
-      let resultPreview = '';
+      let result = '';
       if (e.result?.content?.[0]?.text) {
-        resultPreview = e.result.content[0].text;
+        result = e.result.content[0].text;
       }
       res.write(`data: ${JSON.stringify({
         type: 'tool_end',
         tool: e.toolName,
         error: e.isError,
         duration: `${duration}s`,
-        result: resultPreview,
+        result,
         elapsed,
       })}\n\n`);
-    } else if (e.type === 'tool_execution_update' && e.toolName === 'subagent') {
-      const pr = e.partialResult;
-      if (!pr?.details) return;
-      const details = pr.details;
-      // Emit chain step transitions
-      if (details.currentStepIndex !== undefined && details.currentStepIndex !== lastStepIndex) {
-        lastStepIndex = details.currentStepIndex;
-        const agents = details.chainAgents || [];
-        const current = agents[details.currentStepIndex] || 'agent';
-        res.write(`data: ${JSON.stringify({
-          type: 'subagent_step',
-          step: details.currentStepIndex + 1,
-          totalSteps: details.totalSteps || agents.length,
-          agent: current,
-          elapsed,
-        })}\n\n`);
-      }
-      // Emit new tool calls and output lines (delta only)
-      if (details.progress) {
-        for (const p of details.progress) {
-          const key = `${p.agent}-${p.index || 0}`;
-          const prev = subagentState.get(key) || { outputLen: 0, toolCount: 0, lastTool: '' };
-          const updates: any = { type: 'subagent_progress', agent: p.agent, elapsed };
-          let hasNew = false;
-          if (p.currentTool && p.currentTool !== prev.lastTool) {
-            updates.tool = p.currentToolArgs ? `${p.currentTool}(${p.currentToolArgs})` : p.currentTool;
-            prev.lastTool = p.currentTool;
-            hasNew = true;
-          }
-          if (p.recentOutput?.length > prev.outputLen) {
-            updates.output = p.recentOutput.slice(prev.outputLen).filter((l: string) => l.trim());
-            prev.outputLen = p.recentOutput.length;
-            hasNew = true;
-          }
-          if (hasNew) {
-            subagentState.set(key, prev);
-            res.write(`data: ${JSON.stringify(updates)}\n\n`);
-          }
-        }
-      }
     }
   };
 }
@@ -190,7 +147,7 @@ router.post('/agent/ingest', async (req, res) => {
       return;
     }
 
-    console.log(`\n📄 Ingesting: ${filename} (using document_parse)`);
+    console.log(`\n📄 Ingesting: ${filename}`);
 
     const { sessionId, session } = await createWikiSession();
 
@@ -207,14 +164,7 @@ router.post('/agent/ingest', async (req, res) => {
 
 The file is located at: ${filePath}
 
-Steps:
-1. Use document_parse({ path: "${filePath}" }) to extract the text content
-2. Use wiki_list() to check existing pages and avoid duplicates
-3. Create a source summary page using wiki_write()
-4. Create entity pages for key people, orgs, equipment, systems
-5. Create concept pages for methods, standards, processes
-6. Add [[cross-references]] between related pages
-7. Be thorough — create 5-15 pages from this source`;
+Follow the Ingest Workflow in your instructions. Be thorough — create 5-15 pages from this source.`;
 
     await session.prompt(prompt);
     sendStats(res, session);
@@ -246,7 +196,9 @@ router.post('/agent/query', async (req, res) => {
     entry.subscribers.add(send);
     req.on('close', () => { entry.subscribers.delete(send); });
 
-    const prompt = `Answer this question using the wiki: ${question}\n\nUse wiki_search and wiki_read to find relevant information. Cite pages with [[Title]] notation.`;
+    const prompt = `Answer this question using the wiki: ${question}
+
+Follow the Query Workflow in your instructions. Cite pages with [[Title]] notation.`;
 
     await session.prompt(prompt);
     sendStats(res, session);

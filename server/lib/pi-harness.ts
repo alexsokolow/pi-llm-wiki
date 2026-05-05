@@ -55,7 +55,7 @@ export async function createWikiSession(opts?: {
   const agentDir = path.join(homedir(), '.pi', 'agent');
   const authStorage = AuthStorage.create(path.join(agentDir, 'auth.json'));
 
-  // Build system prompt from wiki/AGENT.md (the orchestrator's instructions)
+  // Build system prompt from wiki/AGENT.md
   const agentsMd = await readFile('wiki/AGENT.md', 'utf-8').catch(() => '');
   const wikiIndex = await readFile('wiki/index.md', 'utf-8').catch(() => '');
   const systemPrompt = `${agentsMd}
@@ -67,12 +67,12 @@ export async function createWikiSession(opts?: {
 Index:
 ${wikiIndex}`;
 
-  // Orchestrator tools — delegates all real work to sub-agents
-  const toolNames: string[] = ['read', 'bash', 'subagent'];
+  // Single agent with minimal tools — skills teach conventions
+  const toolNames: string[] = ['read', 'bash', 'edit', 'write', 'document_parse'];
 
   const thinkingLevel = (opts?.thinkingLevel ?? config.thinkingLevel) as any;
 
-  // Resolve model from app config (provider/model set in the config tab)
+  // Resolve model from app config
   const modelRegistry = ModelRegistry.create(authStorage, path.join(agentDir, 'models.json'));
   const provider = opts?.provider ?? config.defaultProvider;
   const modelId = opts?.model ?? config.defaultModel;
@@ -81,15 +81,13 @@ ${wikiIndex}`;
     throw new Error(`Model not found: ${provider}/${modelId}. Check config tab settings.`);
   }
 
-  // Load pi-subagents extension (provides subagent tool)
-  // pi-docparser stays loaded so sub-agents can use document_parse
+  // Load pi-docparser extension for PDF/DOCX parsing
   const docparserExtPath = path.resolve('node_modules/pi-docparser/extensions/docparser/index.ts');
-  const subagentsExtPath = path.resolve('node_modules/pi-subagents/src/extension/index.ts');
 
   const loader = new DefaultResourceLoader({
     cwd: process.cwd(),
     agentDir,
-    additionalExtensionPaths: [docparserExtPath, subagentsExtPath],
+    additionalExtensionPaths: [docparserExtPath],
     skillsOverride: (current) => ({
       skills: [
         ...current.skills,
@@ -135,11 +133,9 @@ ${wikiIndex}`;
   const subscribers = new Set<(e: AgentSessionEvent) => void>();
 
   const toolTimers = new Map<string, number>();
-  // Track sub-agent progress to only print deltas
-  const subagentState = new Map<string, { outputLen: number; toolCount: number; lastTool: string }>();
 
   const unsubscribe = session.subscribe((event) => {
-    // Server-side logging (pi CLI-style verbose)
+    // Server-side logging
     if (event.type === 'tool_execution_start') {
       const e = event as any;
       toolTimers.set(e.toolCallId, Date.now());
@@ -156,48 +152,6 @@ ${wikiIndex}`;
       }
       console.log(`\n  ${status} ${e.toolName} (${dur}s)`);
       if (result) console.log(result);
-    } else if (event.type === 'tool_execution_update') {
-      const e = event as any;
-      if (e.toolName === 'subagent' && e.partialResult) {
-        const pr = e.partialResult;
-        const details = pr.details;
-        // Show chain step progress
-        if (details?.currentStepIndex !== undefined) {
-          const agents = details.chainAgents || [];
-          const step = details.currentStepIndex;
-          const total = details.totalSteps || agents.length;
-          const current = agents[step] || 'agent';
-          // Only print step transition once
-          const stepKey = `step-${step}`;
-          if (!subagentState.has(stepKey)) {
-            subagentState.set(stepKey, { outputLen: 0, toolCount: 0, lastTool: '' });
-            console.log(`\n  → [step ${step + 1}/${total}] ${current}`);
-          }
-        }
-        // Log new tool calls and output from sub-agents
-        if (details?.progress) {
-          for (const p of details.progress) {
-            const key = `${p.agent}-${p.index || 0}`;
-            const prev = subagentState.get(key) || { outputLen: 0, toolCount: 0, lastTool: '' };
-            // Print new tool call
-            if (p.currentTool && p.currentTool !== prev.lastTool) {
-              const toolInfo = p.currentToolArgs ? `${p.currentTool}(${p.currentToolArgs})` : p.currentTool;
-              console.log(`    ⚡ [${p.agent}] ${toolInfo}`);
-              prev.lastTool = p.currentTool;
-            }
-            // Print new output lines only
-            if (p.recentOutput?.length > prev.outputLen) {
-              const newLines = p.recentOutput.slice(prev.outputLen);
-              for (const line of newLines) {
-                if (line.trim()) console.log(`    │ ${line}`);
-              }
-              prev.outputLen = p.recentOutput.length;
-            }
-            if (p.toolCount) prev.toolCount = p.toolCount;
-            subagentState.set(key, prev);
-          }
-        }
-      }
     } else if (event.type === 'agent_start') {
       console.log(`\n  🧠 agent reasoning...`);
     } else if (event.type === 'agent_end') {
