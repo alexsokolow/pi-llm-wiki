@@ -2,6 +2,7 @@ import {
   AuthStorage,
   createAgentSession,
   DefaultResourceLoader,
+  ModelRegistry,
   SessionManager,
   type AgentSession,
   type AgentSessionEvent,
@@ -71,6 +72,15 @@ ${wikiIndex}`;
 
   const thinkingLevel = (opts?.thinkingLevel ?? config.thinkingLevel) as any;
 
+  // Resolve model from app config (provider/model set in the config tab)
+  const modelRegistry = ModelRegistry.create(authStorage, path.join(agentDir, 'models.json'));
+  const provider = opts?.provider ?? config.defaultProvider;
+  const modelId = opts?.model ?? config.defaultModel;
+  const model = modelRegistry.find(provider, modelId);
+  if (!model) {
+    throw new Error(`Model not found: ${provider}/${modelId}. Check config tab settings.`);
+  }
+
   // Load pi-subagents extension (provides subagent tool)
   // pi-docparser stays loaded so sub-agents can use document_parse
   const docparserExtPath = path.resolve('node_modules/pi-docparser/extensions/docparser/index.ts');
@@ -107,8 +117,10 @@ ${wikiIndex}`;
   const { session } = await createAgentSession({
     cwd: process.cwd(),
     agentDir,
+    model,
     thinkingLevel,
     authStorage,
+    modelRegistry,
     tools: toolNames,
     sessionManager: SessionManager.inMemory(),
     resourceLoader: loader,
