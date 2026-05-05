@@ -121,8 +121,8 @@ export async function createWikiSession(opts?: {
   const config = await loadConfig();
   const authStorage = AuthStorage.create();
 
-  // Build system prompt from AGENTS.md + wiki index
-  const agentsMd = await readFile('AGENTS.md', 'utf-8').catch(() => '');
+  // Build system prompt from wiki/AGENT.md (the wiki agent's instructions)
+  const agentsMd = await readFile('wiki/AGENT.md', 'utf-8').catch(() => '');
   const wikiIndex = await wikiFs.readWikiFile('index.md').catch(() => '');
   const systemPrompt = `${agentsMd}
 
