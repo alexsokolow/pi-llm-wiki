@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import type { SessionStats } from '../hooks/useAgentStream'
 
 export interface LogEntry {
   id: string
@@ -12,9 +13,10 @@ export interface LogEntry {
 
 interface Props {
   entries: LogEntry[]
+  stats: SessionStats | null
 }
 
-export default function ActivityDrawer({ entries }: Props) {
+export default function ActivityDrawer({ entries, stats }: Props) {
   const [expanded, setExpanded] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -35,20 +37,38 @@ export default function ActivityDrawer({ entries }: Props) {
 
   const formatTime = (ts: number) => {
     const d = new Date(ts)
-    return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`
+    return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}`
+  }
+
+  const formatTokens = (n: number) => {
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+    if (n >= 1_000) return `${(n / 1_000).toFixed(0)}k`
+    return String(n)
   }
 
   return (
     <div className={`activity-drawer ${expanded ? 'expanded' : 'collapsed'}`}>
-      <button
-        className="activity-drawer-toggle"
-        onClick={() => setExpanded(!expanded)}
-      >
-        {expanded ? '▼' : '▲'} agent activity
-        {!expanded && entries.length > 0 && (
-          <span className="activity-count">{entries.length}</span>
+      <div className="activity-drawer-header">
+        <button
+          className="activity-drawer-toggle"
+          onClick={() => setExpanded(!expanded)}
+        >
+          {expanded ? '▼' : '▲'} agent activity
+          {!expanded && entries.length > 0 && (
+            <span className="activity-count">{entries.length}</span>
+          )}
+        </button>
+        {stats && (
+          <div className="activity-stats-bar">
+            <span>↑{formatTokens(stats.tokens?.input || 0)}</span>
+            <span>↓{formatTokens(stats.tokens?.output || 0)}</span>
+            {(stats.tokens?.cacheRead || 0) > 0 && <span>R{formatTokens(stats.tokens!.cacheRead)}</span>}
+            {(stats.tokens?.cacheWrite || 0) > 0 && <span>W{formatTokens(stats.tokens!.cacheWrite)}</span>}
+            {stats.cost != null && stats.cost > 0 && <span>${stats.cost.toFixed(3)}</span>}
+            <span className="activity-stats-model">({stats.provider}) {stats.model}</span>
+          </div>
         )}
-      </button>
+      </div>
       {expanded && (
         <div className="activity-drawer-content" ref={scrollRef}>
           {entries.map(entry => (
@@ -59,15 +79,20 @@ export default function ActivityDrawer({ entries }: Props) {
                 </div>
               )}
               {entry.type === 'tool_start' && (
-                <div className="activity-tool">
-                  ⚡ {entry.tool}
+                <div className="activity-tool-call">
+                  <span className="activity-icon">⚡</span>
+                  <span className="activity-tool-name">{entry.tool}</span>
+                  {entry.preview && (
+                    <span className="activity-tool-args">{entry.preview}</span>
+                  )}
                 </div>
               )}
               {entry.type === 'tool_end' && (
-                <div className="activity-tool">
-                  {entry.error ? '❌' : '✅'} {entry.tool}
+                <div className="activity-tool-result">
+                  <span className="activity-icon">{entry.error ? '❌' : '✅'}</span>
+                  <span className="activity-tool-name">{entry.tool}</span>
                   {entry.preview && (
-                    <div className="activity-preview">→ {entry.preview}</div>
+                    <span className="activity-tool-output">{entry.preview}</span>
                   )}
                 </div>
               )}

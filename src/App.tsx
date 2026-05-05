@@ -42,7 +42,7 @@ export default function App() {
             ))}
           </nav>
         }
-        drawer={<ActivityDrawer entries={agent.entries} />}
+        drawer={<ActivityDrawer entries={agent.entries} stats={agent.stats} />}
       >
         {view === 'browser' && <WikiBrowser />}
         {view === 'graph' && <WikiGraph />}

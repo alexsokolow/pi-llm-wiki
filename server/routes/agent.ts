@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { AuthStorage, ModelRegistry } from '@mariozechner/pi-coding-agent';
 import { homedir } from 'os';
 import path from 'path';
+import type { Response } from 'express';
 import {
   createWikiSession,
   getSession,
@@ -12,7 +13,63 @@ import {
 
 const router = Router();
 
-// GET /api/models — list available models from Pi's ModelRegistry
+// ─── Helper: verbose SSE event forwarder (CLI-style) ─────────────────────────
+
+function createEventForwarder(res: Response) {
+  const startTime = Date.now();
+  const toolTimers = new Map<string, number>();
+
+  return (e: any) => {
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+
+    if (e.type === 'message_update' && e.assistantMessageEvent?.type === 'text_delta') {
+      res.write(`data: ${JSON.stringify({ type: 'text', content: e.assistantMessageEvent.delta })}\n\n`);
+    } else if (e.type === 'tool_execution_start') {
+      toolTimers.set(e.toolCallId, Date.now());
+      const argsPreview = e.args ? JSON.stringify(e.args).slice(0, 300) : '';
+      res.write(`data: ${JSON.stringify({
+        type: 'tool_start',
+        tool: e.toolName,
+        args: argsPreview,
+        elapsed,
+      })}\n\n`);
+    } else if (e.type === 'tool_execution_end') {
+      const toolStart = toolTimers.get(e.toolCallId) || startTime;
+      const duration = ((Date.now() - toolStart) / 1000).toFixed(2);
+      let resultPreview = '';
+      if (e.result?.content?.[0]?.text) {
+        resultPreview = e.result.content[0].text.slice(0, 200);
+      }
+      res.write(`data: ${JSON.stringify({
+        type: 'tool_end',
+        tool: e.toolName,
+        error: e.isError,
+        duration: `${duration}s`,
+        result: resultPreview,
+        elapsed,
+      })}\n\n`);
+    }
+  };
+}
+
+function sendStats(res: Response, session: any) {
+  try {
+    const stats = session.getSessionStats();
+    res.write(`data: ${JSON.stringify({
+      type: 'stats',
+      tokens: stats.tokens,
+      cost: stats.cost,
+      toolCalls: stats.toolCalls,
+      model: session.model?.id || 'unknown',
+      provider: session.model?.provider || 'unknown',
+    })}\n\n`);
+  } catch {
+    // stats not available
+  }
+}
+
+// ─── GET /api/models ─────────────────────────────────────────────────────────
+
 router.get('/models', async (_req, res) => {
   try {
     const agentDir = path.join(homedir(), '.pi', 'agent');
@@ -25,7 +82,8 @@ router.get('/models', async (_req, res) => {
   }
 });
 
-// POST /api/agent/sessions — create new agent session
+// ─── POST /api/agent/sessions ────────────────────────────────────────────────
+
 router.post('/agent/sessions', async (req, res) => {
   try {
     const { provider, model, thinkingLevel } = req.body || {};
@@ -36,86 +94,52 @@ router.post('/agent/sessions', async (req, res) => {
   }
 });
 
-// GET /api/agent/sessions — list active sessions
 router.get('/agent/sessions', (_req, res) => {
   res.json({ sessions: listSessionIds() });
 });
 
-// POST /api/agent/sessions/:id/prompt — send prompt to session, stream response
+// ─── POST /api/agent/sessions/:id/prompt ─────────────────────────────────────
+
 router.post('/agent/sessions/:id/prompt', async (req, res) => {
   try {
     const session = getSession(req.params.id);
-    if (!session) {
-      res.status(404).json({ error: 'Session not found' });
-      return;
-    }
+    if (!session) { res.status(404).json({ error: 'Session not found' }); return; }
 
     const { text } = req.body;
-    if (!text) {
-      res.status(400).json({ error: 'text required' });
-      return;
-    }
+    if (!text) { res.status(400).json({ error: 'text required' }); return; }
 
-    // Set up SSE streaming
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
 
     const entry = getSessionEntry(req.params.id)!;
-    const send = (e: any) => {
-      if (e.type === 'message_update' && e.assistantMessageEvent?.type === 'text_delta') {
-        res.write(`data: ${JSON.stringify({ type: 'text', content: e.assistantMessageEvent.delta })}\n\n`);
-      } else if (e.type === 'tool_execution_start') {
-        res.write(`data: ${JSON.stringify({ type: 'tool_start', tool: e.toolName })}\n\n`);
-      } else if (e.type === 'tool_execution_end') {
-        res.write(`data: ${JSON.stringify({ type: 'tool_end', tool: e.toolName, error: e.isError })}\n\n`);
-      } else if (e.type === 'agent_end') {
-        res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
-      }
-    };
-
+    const send = createEventForwarder(res);
     entry.subscribers.add(send);
+    req.on('close', () => { entry.subscribers.delete(send); });
 
-    // Handle client disconnect
-    req.on('close', () => {
-      entry.subscribers.delete(send);
-    });
-
-    // Send prompt (async — resolves when agent finishes)
     await session.prompt(text);
-
-    // Send done and close
+    sendStats(res, session);
     res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
     entry.subscribers.delete(send);
     res.end();
   } catch (err) {
-    if (res.headersSent) {
-      res.end();
-    } else {
-      res.status(500).json({ error: String(err) });
-    }
+    if (res.headersSent) res.end();
+    else res.status(500).json({ error: String(err) });
   }
 });
 
-// DELETE /api/agent/sessions/:id — destroy session
 router.delete('/agent/sessions/:id', (req, res) => {
   deleteSession(req.params.id);
   res.json({ success: true });
 });
 
-// --- Legacy compatibility: /api/agent/ingest and /api/agent/query ---
-// These create a one-shot session, prompt it, stream the result, then destroy
-
+// ─── POST /api/agent/ingest ──────────────────────────────────────────────────
 
 router.post('/agent/ingest', async (req, res) => {
   try {
     const { filename } = req.body;
-    if (!filename) {
-      res.status(400).json({ error: 'filename required' });
-      return;
-    }
+    if (!filename) { res.status(400).json({ error: 'filename required' }); return; }
 
-    // Verify the file exists
     const { access } = await import('fs/promises');
     const filePath = path.resolve('wiki/raw', filename);
     try { await access(filePath); } catch {
@@ -132,19 +156,8 @@ router.post('/agent/ingest', async (req, res) => {
     res.setHeader('Connection', 'keep-alive');
 
     const entry = getSessionEntry(sessionId)!;
-    const send = (e: any) => {
-      if (e.type === 'message_update' && e.assistantMessageEvent?.type === 'text_delta') {
-        res.write(`data: ${JSON.stringify({ type: 'text', content: e.assistantMessageEvent.delta })}\n\n`);
-      } else if (e.type === 'tool_execution_start') {
-        res.write(`data: ${JSON.stringify({ type: 'tool_start', tool: e.toolName })}\n\n`);
-      } else if (e.type === 'tool_execution_end') {
-        res.write(`data: ${JSON.stringify({ type: 'tool_end', tool: e.toolName, error: e.isError })}\n\n`);
-      } else if (e.type === 'message_update' && e.assistantMessageEvent?.type === 'thinking_delta') {
-        res.write(`data: ${JSON.stringify({ type: 'thinking', content: e.assistantMessageEvent.delta })}\n\n`);
-      }
-    };
+    const send = createEventForwarder(res);
     entry.subscribers.add(send);
-
     req.on('close', () => { entry.subscribers.delete(send); });
 
     const prompt = `Ingest the document "${filename}" into the wiki.
@@ -161,6 +174,7 @@ Steps:
 7. Be thorough — create 5-15 pages from this source`;
 
     await session.prompt(prompt);
+    sendStats(res, session);
     res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
     entry.subscribers.delete(send);
     deleteSession(sessionId);
@@ -171,14 +185,12 @@ Steps:
   }
 });
 
+// ─── POST /api/agent/query ───────────────────────────────────────────────────
 
 router.post('/agent/query', async (req, res) => {
   try {
     const { question } = req.body;
-    if (!question) {
-      res.status(400).json({ error: 'question required' });
-      return;
-    }
+    if (!question) { res.status(400).json({ error: 'question required' }); return; }
 
     const { sessionId, session } = await createWikiSession();
 
@@ -187,24 +199,14 @@ router.post('/agent/query', async (req, res) => {
     res.setHeader('Connection', 'keep-alive');
 
     const entry = getSessionEntry(sessionId)!;
-    const send = (e: any) => {
-      if (e.type === 'message_update' && e.assistantMessageEvent?.type === 'text_delta') {
-        res.write(`data: ${JSON.stringify({ type: 'text', content: e.assistantMessageEvent.delta })}\n\n`);
-      } else if (e.type === 'tool_execution_start') {
-        res.write(`data: ${JSON.stringify({ type: 'tool_start', tool: e.toolName })}\n\n`);
-      } else if (e.type === 'tool_execution_end') {
-        res.write(`data: ${JSON.stringify({ type: 'tool_end', tool: e.toolName, error: e.isError })}\n\n`);
-      } else if (e.type === 'message_update' && e.assistantMessageEvent?.type === 'thinking_delta') {
-        res.write(`data: ${JSON.stringify({ type: 'thinking', content: e.assistantMessageEvent.delta })}\n\n`);
-      }
-    };
+    const send = createEventForwarder(res);
     entry.subscribers.add(send);
-
     req.on('close', () => { entry.subscribers.delete(send); });
 
     const prompt = `Answer this question using the wiki: ${question}\n\nUse wiki_search and wiki_read to find relevant information. Cite pages with [[Title]] notation.`;
 
     await session.prompt(prompt);
+    sendStats(res, session);
     res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
     entry.subscribers.delete(send);
     deleteSession(sessionId);

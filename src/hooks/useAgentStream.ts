@@ -4,17 +4,27 @@ import type { LogEntry } from '../components/ActivityDrawer'
 let entryId = 0
 function nextId() { return `log-${++entryId}` }
 
+export interface SessionStats {
+  tokens?: { input: number; output: number; cacheRead: number; cacheWrite: number; total: number }
+  cost?: number
+  toolCalls?: number
+  model?: string
+  provider?: string
+}
+
 export interface UseAgentStreamResult {
   output: string
   isRunning: boolean
   run: (url: string, body: object, label: string) => Promise<string>
   entries: LogEntry[]
+  stats: SessionStats | null
 }
 
 export function useAgentStream(): UseAgentStreamResult {
   const [output, setOutput] = useState('')
   const [isRunning, setIsRunning] = useState(false)
   const [entries, setEntries] = useState<LogEntry[]>([])
+  const [stats, setStats] = useState<SessionStats | null>(null)
   const startTime = useRef(0)
 
   const addEntry = useCallback((entry: LogEntry) => {
@@ -44,38 +54,62 @@ export function useAgentStream(): UseAgentStreamResult {
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
       let text = ''
+      let buffer = ''
 
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
-        const chunk = decoder.decode(value, { stream: true })
+        buffer += decoder.decode(value, { stream: true })
 
-        // Try to parse as SSE (data: {...}\n\n)
-        const lines = chunk.split('\n')
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const event = JSON.parse(line.slice(6))
-              if (event.type === 'tool_start') {
-                addEntry({ id: nextId(), type: 'tool_start', timestamp: Date.now(), tool: event.tool })
-              } else if (event.type === 'tool_end') {
-                addEntry({ id: nextId(), type: 'tool_end', timestamp: Date.now(), tool: event.tool, preview: event.preview, error: event.error })
-              } else if (event.type === 'thinking') {
-                // Ignore thinking deltas — they flood the drawer
-              } else if (event.type === 'text') {
-                text += event.content
-                setOutput(text)
-              } else if (event.type === 'done') {
-                // will be handled after loop
-              }
-            } catch {
-              // Not valid JSON — treat as plain text
-              text += line.slice(6)
+        // Process complete SSE messages
+        const messages = buffer.split('\n\n')
+        buffer = messages.pop() || '' // keep incomplete last chunk
+
+        for (const msg of messages) {
+          const line = msg.trim()
+          if (!line.startsWith('data: ')) continue
+          const data = line.slice(6)
+
+          try {
+            const event = JSON.parse(data)
+
+            if (event.type === 'tool_start') {
+              const argsStr = event.args ? ` ${event.args}` : ''
+              addEntry({
+                id: nextId(),
+                type: 'tool_start',
+                timestamp: Date.now(),
+                tool: event.tool,
+                preview: argsStr.slice(0, 150),
+              })
+            } else if (event.type === 'tool_end') {
+              addEntry({
+                id: nextId(),
+                type: 'tool_end',
+                timestamp: Date.now(),
+                tool: event.tool,
+                preview: event.result
+                  ? `${event.duration} → ${event.result}`
+                  : event.duration,
+                error: event.error,
+              })
+            } else if (event.type === 'text') {
+              text += event.content
               setOutput(text)
+            } else if (event.type === 'stats') {
+              setStats({
+                tokens: event.tokens,
+                cost: event.cost,
+                toolCalls: event.toolCalls,
+                model: event.model,
+                provider: event.provider,
+              })
+            } else if (event.type === 'done') {
+              // handled below
             }
-          } else if (line.trim() && !line.startsWith(':')) {
-            // Plain text streaming (non-SSE fallback)
-            text += line
+          } catch {
+            // Not valid JSON — plain text fallback
+            text += data
             setOutput(text)
           }
         }
@@ -92,5 +126,5 @@ export function useAgentStream(): UseAgentStreamResult {
     }
   }, [addEntry])
 
-  return { output, isRunning, run, entries }
+  return { output, isRunning, run, entries, stats }
 }
