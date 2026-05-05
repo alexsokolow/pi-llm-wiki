@@ -60,9 +60,12 @@ router.get('/log', async (_req, res) => {
 
 router.post('/reset', async (_req, res) => {
   try {
+    console.log('  🗑️  Wiki reset requested');
     await wikiFs.resetWiki();
+    console.log('  ✅ Wiki reset complete');
     res.json({ ok: true });
   } catch (err) {
+    console.error('  ❌ Wiki reset failed:', err);
     res.status(500).json({ error: String(err) });
   }
 });

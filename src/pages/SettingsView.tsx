@@ -148,7 +148,10 @@ export default function SettingsView() {
             if (!confirm('Reset wiki? This will delete all pages, index, and log. Raw source files are kept.')) return
             setResetting(true)
             try {
-              const res = await fetch('/api/wiki/reset', { method: 'POST' })
+              const res = await fetch('/api/wiki/reset', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+              })
               if (res.ok) {
                 setStatus('✅ wiki reset')
               } else {
