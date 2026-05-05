@@ -183,18 +183,36 @@ Use [[Page Title]] cross-references between related pages.`;
   const events: AgentSessionEvent[] = [];
   const subscribers = new Set<(e: AgentSessionEvent) => void>();
 
+  const toolTimers = new Map<string, number>();
+
   const unsubscribe = session.subscribe((event) => {
-    // Server-side logging (pi CLI-style terminal output)
+    // Server-side logging (pi CLI-style verbose)
     if (event.type === 'tool_execution_start') {
-      console.log(`  ⚡ ${(event as any).toolName}`);
+      const e = event as any;
+      toolTimers.set(e.toolCallId, Date.now());
+      const args = e.args ? JSON.stringify(e.args) : '';
+      const argsShort = args.length > 120 ? args.slice(0, 120) + '...' : args;
+      console.log(`\n  ⚡ ${e.toolName} ${argsShort}`);
     } else if (event.type === 'tool_execution_end') {
       const e = event as any;
+      const start = toolTimers.get(e.toolCallId) || Date.now();
+      const dur = ((Date.now() - start) / 1000).toFixed(2);
       const status = e.isError ? '❌' : '✅';
-      console.log(`  ${status} ${e.toolName} done`);
+      let result = '';
+      if (e.result?.content?.[0]?.text) {
+        result = e.result.content[0].text.slice(0, 100).replace(/\n/g, ' ');
+      }
+      console.log(`  ${status} ${e.toolName} (${dur}s)${result ? ' → ' + result : ''}`);
     } else if (event.type === 'agent_start') {
-      console.log(`  🧠 agent reasoning...`);
+      console.log(`\n  🧠 agent reasoning...`);
     } else if (event.type === 'agent_end') {
-      console.log(`  🏁 agent finished`);
+      try {
+        const stats = (session as any).getSessionStats();
+        const t = stats.tokens;
+        console.log(`\n  🏁 done | ↑${t.input} ↓${t.output} R${t.cacheRead} W${t.cacheWrite} $${stats.cost?.toFixed(3) || '0'} | ${stats.toolCalls} tool calls`);
+      } catch {
+        console.log(`\n  🏁 agent finished`);
+      }
     } else if (event.type === 'message_update') {
       const me = event as any;
       if (me.assistantMessageEvent?.type === 'text_delta') {
