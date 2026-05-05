@@ -1,23 +1,16 @@
 import { useState, useRef, useEffect } from 'react'
+import { useAgent } from '../AgentContext'
 
 export default function IngestView() {
+  const { run, isRunning, output } = useAgent()
   const [sources, setSources] = useState<string[]>([])
   const [selected, setSelected] = useState('')
   const [status, setStatus] = useState('')
-  const [output, setOutput] = useState('')
-  const [isRunning, setIsRunning] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
-  const outputRef = useRef<HTMLPreElement>(null)
 
   useEffect(() => {
     fetchSources()
   }, [])
-
-  useEffect(() => {
-    if (outputRef.current) {
-      outputRef.current.scrollTop = outputRef.current.scrollHeight
-    }
-  }, [output])
 
   const fetchSources = () => {
     fetch('/api/wiki/sources')
@@ -56,33 +49,9 @@ export default function IngestView() {
 
   const handleCompile = async () => {
     if (!selected || isRunning) return
-    setOutput('')
-    setIsRunning(true)
     setStatus('agent processing...')
-
-    const res = await fetch('/api/agent/ingest', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ filename: selected }),
-    })
-
-    if (!res.ok || !res.body) {
-      setStatus('❌ agent failed')
-      setIsRunning(false)
-      return
-    }
-
-    const reader = res.body.getReader()
-    const decoder = new TextDecoder()
-    let text = ''
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      text += decoder.decode(value, { stream: true })
-      setOutput(text)
-    }
-    setStatus('✅ ingest complete')
-    setIsRunning(false)
+    const result = await run('/api/agent/ingest', { filename: selected }, `ingest: ${selected}`)
+    setStatus(result ? '✅ ingest complete' : '❌ ingest failed')
     fetchSources()
   }
 
@@ -118,7 +87,7 @@ export default function IngestView() {
       )}
       {status && <div className="status-line">&gt; {status}</div>}
       {output && (
-        <pre ref={outputRef} className="output-stream">
+        <pre className="output-stream">
           {output}
         </pre>
       )}

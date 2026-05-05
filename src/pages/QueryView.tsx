@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from 'react'
+import { useAgent } from '../AgentContext'
 
 export default function QueryView() {
+  const { run, isRunning, output } = useAgent()
   const [question, setQuestion] = useState('')
-  const [output, setOutput] = useState('')
   const [history, setHistory] = useState<{ q: string; a: string }[]>([])
-  const [isRunning, setIsRunning] = useState(false)
   const outputRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -17,33 +17,8 @@ export default function QueryView() {
     if (!question.trim() || isRunning) return
     const q = question.trim()
     setQuestion('')
-    setOutput('')
-    setIsRunning(true)
-
-    const res = await fetch('/api/agent/query', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question: q }),
-    })
-
-    if (!res.ok || !res.body) {
-      setHistory(h => [...h, { q, a: '(query failed)' }])
-      setIsRunning(false)
-      return
-    }
-
-    const reader = res.body.getReader()
-    const decoder = new TextDecoder()
-    let text = ''
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      text += decoder.decode(value, { stream: true })
-      setOutput(text)
-    }
-    setHistory(h => [...h, { q, a: text }])
-    setOutput('')
-    setIsRunning(false)
+    const answer = await run('/api/agent/query', { question: q }, `query: "${q}"`)
+    setHistory(h => [...h, { q, a: answer }])
   }
 
   return (
