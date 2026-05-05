@@ -60,6 +60,9 @@ export function useAgentStream(): UseAgentStreamResult {
                 addEntry({ id: nextId(), type: 'tool_start', timestamp: Date.now(), tool: event.tool })
               } else if (event.type === 'tool_end') {
                 addEntry({ id: nextId(), type: 'tool_end', timestamp: Date.now(), tool: event.tool, preview: event.preview, error: event.error })
+              } else if (event.type === 'thinking') {
+                // Show thinking in the activity drawer as a tool-like entry
+                addEntry({ id: nextId(), type: 'tool_start', timestamp: Date.now(), tool: '🧠 thinking...' })
               } else if (event.type === 'text') {
                 text += event.content
                 setOutput(text)

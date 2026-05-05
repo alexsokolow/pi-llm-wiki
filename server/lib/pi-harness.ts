@@ -173,6 +173,16 @@ Use [[Page Title]] cross-references between related pages.`;
   const subscribers = new Set<(e: AgentSessionEvent) => void>();
 
   const unsubscribe = session.subscribe((event) => {
+    // Server-side logging (visible in terminal)
+    if (event.type === 'tool_execution_start') {
+      console.log(`  ⚡ [${sessionId}] tool: ${(event as any).toolName}`);
+    } else if (event.type === 'tool_execution_end') {
+      console.log(`  ${(event as any).isError ? '❌' : '✅'} [${sessionId}] tool done: ${(event as any).toolName}`);
+    } else if (event.type === 'agent_start') {
+      console.log(`  🧠 [${sessionId}] agent started`);
+    } else if (event.type === 'agent_end') {
+      console.log(`  🏁 [${sessionId}] agent finished`);
+    }
     events.push(event);
     subscribers.forEach((cb) => cb(event));
   });

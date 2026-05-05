@@ -114,22 +114,83 @@ router.post('/agent/ingest', async (req, res) => {
       return;
     }
 
+    // Pre-extract text from binary files (PDF, DOCX)
+    const { readFile } = await import('fs/promises');
+    const filePath = path.resolve('wiki/raw', filename);
+    const ext = path.extname(filename).toLowerCase();
+    let sourceText = '';
+
+    try {
+      if (ext === '.pdf') {
+        const pdfParse = (await import('pdf-parse')).default;
+        const buffer = await readFile(filePath);
+        const data = await pdfParse(buffer);
+        sourceText = data.text;
+      } else if (ext === '.docx') {
+        const mammoth = await import('mammoth');
+        const result = await mammoth.default.extractRawText({ path: filePath });
+        sourceText = result.value;
+      } else {
+        sourceText = await readFile(filePath, 'utf-8');
+      }
+    } catch (e) {
+      res.status(400).json({ error: `Failed to extract text from ${filename}: ${e}` });
+      return;
+    }
+
+    if (!sourceText.trim()) {
+      res.status(400).json({ error: `No text could be extracted from ${filename}` });
+      return;
+    }
+
+    // Cap content for the LLM context
+    if (sourceText.length > 15000) {
+      sourceText = sourceText.slice(0, 10000) + '\n\n[... content truncated ...]\n\n' + sourceText.slice(-5000);
+    }
+
+    console.log(`\n📄 Ingesting: ${filename} (${sourceText.length} chars extracted)`);
+
     const { sessionId, session } = await createWikiSession();
 
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
 
     const entry = getSessionEntry(sessionId)!;
     const send = (e: any) => {
       if (e.type === 'message_update' && e.assistantMessageEvent?.type === 'text_delta') {
-        res.write(e.assistantMessageEvent.delta);
+        res.write(`data: ${JSON.stringify({ type: 'text', content: e.assistantMessageEvent.delta })}\n\n`);
+      } else if (e.type === 'tool_execution_start') {
+        res.write(`data: ${JSON.stringify({ type: 'tool_start', tool: e.toolName })}\n\n`);
+      } else if (e.type === 'tool_execution_end') {
+        res.write(`data: ${JSON.stringify({ type: 'tool_end', tool: e.toolName, error: e.isError })}\n\n`);
+      } else if (e.type === 'message_update' && e.assistantMessageEvent?.type === 'thinking_delta') {
+        res.write(`data: ${JSON.stringify({ type: 'thinking', content: e.assistantMessageEvent.delta })}\n\n`);
       }
     };
     entry.subscribers.add(send);
 
-    const prompt = `Ingest the source file "${filename}" into the wiki. Use wiki_sources to verify it exists, then read it with the bash tool or appropriate method. Extract key entities, concepts, and create wiki pages using wiki_write. Update the wiki index.`;
+    req.on('close', () => { entry.subscribers.delete(send); });
+
+    const prompt = `Ingest this document into the wiki.
+
+Source file: ${filename}
+
+Extracted text content:
+---
+${sourceText}
+---
+
+Your task:
+1. Use wiki_list() to see existing pages
+2. Create a source summary page using wiki_write()
+3. Create entity pages for key people, orgs, equipment, systems
+4. Create concept pages for methods, standards, processes
+5. Add [[cross-references]] between related pages
+6. Be thorough — create 5-15 pages from this source`;
 
     await session.prompt(prompt);
+    res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
     entry.subscribers.delete(send);
     deleteSession(sessionId);
     res.end();
@@ -151,18 +212,28 @@ router.post('/agent/query', async (req, res) => {
 
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
 
     const entry = getSessionEntry(sessionId)!;
     const send = (e: any) => {
       if (e.type === 'message_update' && e.assistantMessageEvent?.type === 'text_delta') {
-        res.write(e.assistantMessageEvent.delta);
+        res.write(`data: ${JSON.stringify({ type: 'text', content: e.assistantMessageEvent.delta })}\n\n`);
+      } else if (e.type === 'tool_execution_start') {
+        res.write(`data: ${JSON.stringify({ type: 'tool_start', tool: e.toolName })}\n\n`);
+      } else if (e.type === 'tool_execution_end') {
+        res.write(`data: ${JSON.stringify({ type: 'tool_end', tool: e.toolName, error: e.isError })}\n\n`);
+      } else if (e.type === 'message_update' && e.assistantMessageEvent?.type === 'thinking_delta') {
+        res.write(`data: ${JSON.stringify({ type: 'thinking', content: e.assistantMessageEvent.delta })}\n\n`);
       }
     };
     entry.subscribers.add(send);
 
+    req.on('close', () => { entry.subscribers.delete(send); });
+
     const prompt = `Answer this question using the wiki: ${question}\n\nUse wiki_search and wiki_read to find relevant information. Cite pages with [[Title]] notation.`;
 
     await session.prompt(prompt);
+    res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
     entry.subscribers.delete(send);
     deleteSession(sessionId);
     res.end();
