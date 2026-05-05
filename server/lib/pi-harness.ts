@@ -148,6 +148,9 @@ Use [[Page Title]] cross-references between related pages.`;
   if (config.plugins.fileSystem) toolNames.push('bash', 'edit', 'write');
   if (config.plugins.codeSearch) toolNames.push('grep', 'find', 'ls');
 
+  // MUST include custom tool names in allowedToolNames or they get filtered out
+  toolNames.push('wiki_read', 'wiki_write', 'wiki_list', 'wiki_search', 'wiki_sources', 'document_parse');
+
   const thinkingLevel = (opts?.thinkingLevel ?? config.thinkingLevel) as any;
 
   // Load pi-docparser extension for PDF/DOCX parsing
@@ -172,20 +175,31 @@ Use [[Page Title]] cross-references between related pages.`;
     resourceLoader: loader,
   });
 
+  // Log available tools for debugging
+  const agentTools = session.agent.state.tools.map((t: any) => t.name || t.label || 'unknown');
+  console.log(`  🔧 [session] tools: ${agentTools.join(', ')}`);
+
   const sessionId = `s-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
   const events: AgentSessionEvent[] = [];
   const subscribers = new Set<(e: AgentSessionEvent) => void>();
 
   const unsubscribe = session.subscribe((event) => {
-    // Server-side logging (visible in terminal)
+    // Server-side logging (pi CLI-style terminal output)
     if (event.type === 'tool_execution_start') {
-      console.log(`  ⚡ [${sessionId}] tool: ${(event as any).toolName}`);
+      console.log(`  ⚡ ${(event as any).toolName}`);
     } else if (event.type === 'tool_execution_end') {
-      console.log(`  ${(event as any).isError ? '❌' : '✅'} [${sessionId}] tool done: ${(event as any).toolName}`);
+      const e = event as any;
+      const status = e.isError ? '❌' : '✅';
+      console.log(`  ${status} ${e.toolName} done`);
     } else if (event.type === 'agent_start') {
-      console.log(`  🧠 [${sessionId}] agent started`);
+      console.log(`  🧠 agent reasoning...`);
     } else if (event.type === 'agent_end') {
-      console.log(`  🏁 [${sessionId}] agent finished`);
+      console.log(`  🏁 agent finished`);
+    } else if (event.type === 'message_update') {
+      const me = event as any;
+      if (me.assistantMessageEvent?.type === 'text_delta') {
+        process.stdout.write(me.assistantMessageEvent.delta);
+      }
     }
     events.push(event);
     subscribers.forEach((cb) => cb(event));

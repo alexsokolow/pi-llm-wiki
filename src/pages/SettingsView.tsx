@@ -29,7 +29,6 @@ export default function SettingsView() {
     fetch('/api/models')
       .then(r => r.json())
       .then(data => {
-        // ModelRegistry.getAvailable() returns model objects with provider/id
         const available = (data.models || []).map((m: any) => ({
           provider: m.provider || m.providerId || 'unknown',
           id: m.id || m.modelId || m.name || 'unknown',
@@ -55,7 +54,6 @@ export default function SettingsView() {
 
   if (!config) return <div className="empty">loading config...</div>
 
-  // Group models by provider
   const providers = [...new Set(models.map(m => m.provider))]
   const selectedKey = `${config.defaultProvider}/${config.defaultModel}`
 
@@ -89,19 +87,15 @@ export default function SettingsView() {
           </select>
         ) : (
           <div className="settings-fallback">
-            <div className="empty">no models found — run `pi /login` in terminal to authenticate providers</div>
+            <div className="empty">no models found — run <code>pi /login</code> in terminal</div>
             <input
               className="command-input"
-              value={config.defaultModel}
-              onChange={e => setConfig({ ...config, defaultModel: e.target.value })}
-              placeholder="e.g. claude-opus-4.6"
-            />
-            <input
-              className="command-input"
-              value={config.defaultProvider}
-              onChange={e => setConfig({ ...config, defaultProvider: e.target.value })}
-              placeholder="e.g. github-copilot"
-              style={{ marginTop: '0.5rem' }}
+              value={`${config.defaultProvider}/${config.defaultModel}`}
+              onChange={e => {
+                const [provider, ...rest] = e.target.value.split('/')
+                setConfig({ ...config, defaultProvider: provider, defaultModel: rest.join('/') })
+              }}
+              placeholder="provider/model-id"
             />
           </div>
         )}
@@ -121,23 +115,6 @@ export default function SettingsView() {
       </div>
 
       <div className="settings-section">
-        <div className="settings-label">Plugins</div>
-        {Object.entries(config.plugins).map(([key, enabled]) => (
-          <label key={key} className="settings-toggle">
-            <input
-              type="checkbox"
-              checked={enabled}
-              onChange={e => setConfig({
-                ...config,
-                plugins: { ...config.plugins, [key]: e.target.checked },
-              })}
-            />
-            <span>{key}</span>
-          </label>
-        ))}
-      </div>
-
-      <div className="settings-section">
         <div className="settings-label">Providers ({providers.length} authenticated)</div>
         <div className="settings-providers">
           {providers.length > 0 ? (
@@ -148,15 +125,15 @@ export default function SettingsView() {
             ))
           ) : (
             <div className="empty">
-              No providers authenticated. Run in terminal:<br/>
-              <code>pi /login</code>
+              No providers authenticated.<br/>
+              Run <code>pi /login</code> in your terminal to add providers.
             </div>
           )}
         </div>
       </div>
 
       <div className="settings-actions">
-        <button className="btn" onClick={save}>SAVE CONFIG</button>
+        <button className="btn" onClick={save}>SAVE</button>
         {status && <span className="status-line">&gt; {status}</span>}
       </div>
     </div>
