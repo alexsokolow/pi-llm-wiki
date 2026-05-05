@@ -54,7 +54,7 @@ export async function createWikiSession(opts?: {
   const agentDir = path.join(homedir(), '.pi', 'agent');
   const authStorage = AuthStorage.create(path.join(agentDir, 'auth.json'));
 
-  // Build system prompt from wiki/AGENT.md (the wiki agent's instructions)
+  // Build system prompt from wiki/AGENT.md (the orchestrator's instructions)
   const agentsMd = await readFile('wiki/AGENT.md', 'utf-8').catch(() => '');
   const wikiIndex = await readFile('wiki/index.md', 'utf-8').catch(() => '');
   const systemPrompt = `${agentsMd}
@@ -64,26 +64,22 @@ export async function createWikiSession(opts?: {
 ## Wiki State
 
 Index:
-${wikiIndex}
+${wikiIndex}`;
 
-## Skills Available
-
-You have skills loaded that teach you wiki operations and document extraction conventions.
-Use the built-in file tools (read, write, edit, bash) plus document_parse for all wiki work.`;
-
-  // Base tools — skills teach the agent how to use these for wiki operations
-  const toolNames: string[] = ['read', 'bash', 'edit', 'write'];
-  toolNames.push('document_parse');
+  // Orchestrator tools — delegates all real work to sub-agents
+  const toolNames: string[] = ['read', 'bash', 'subagent'];
 
   const thinkingLevel = (opts?.thinkingLevel ?? config.thinkingLevel) as any;
 
-  // Load pi-docparser extension for PDF/DOCX parsing
+  // Load pi-subagents extension (provides subagent tool)
+  // pi-docparser stays loaded so sub-agents can use document_parse
   const docparserExtPath = path.resolve('node_modules/pi-docparser/extensions/docparser/index.ts');
+  const subagentsExtPath = path.resolve('node_modules/pi-subagents/src/extension/index.ts');
 
   const loader = new DefaultResourceLoader({
     cwd: process.cwd(),
     agentDir,
-    additionalExtensionPaths: [docparserExtPath],
+    additionalExtensionPaths: [docparserExtPath, subagentsExtPath],
     skillsOverride: (current) => ({
       skills: [
         ...current.skills,
