@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useAgent } from '../AgentContext'
+import MarkdownViewer from '../components/MarkdownViewer'
 
 export default function QueryView() {
   const { run, isRunning, output } = useAgent()
@@ -32,13 +33,13 @@ export default function QueryView() {
         {history.map((turn, i) => (
           <div key={i} className="query-turn">
             <div className="query-q">&gt; {turn.q}</div>
-            <div className="query-a">{turn.a}</div>
+            <div className="query-a"><MarkdownViewer content={turn.a} /></div>
           </div>
         ))}
         {isRunning && output && (
           <div className="query-turn">
             <div className="query-q">&gt; {history.length > 0 ? '' : question}</div>
-            <div className="query-a">{output}</div>
+            <div className="query-a"><MarkdownViewer content={output} /></div>
           </div>
         )}
         {history.length === 0 && !isRunning && (

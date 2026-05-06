@@ -13,3 +13,6 @@ Searched wiki using semantic query. Read pages: Self-Attention, Scaled Dot-Produ
 ## [2026-05-06] query | why are transformers important
 
 Searched wiki using npx qmd query. Consulted pages: Transformer Architecture, Self-Attention, Sequence Transduction, Attention Is All You Need. Synthesized answer for user.
+## [2026-05-06] query | why attention is all you need (5 bullet points)
+
+Used semantic search (npx qmd query) returning 13 chunks across all concept, entity, and source pages. Read pages: Attention Is All You Need, Transformer Architecture, Self-Attention, Multi-Head Attention. Synthesized answer in 5 bullet points covering: parallelization, long-range dependencies, multi-head representations, SOTA performance, and generality without recurrence/convolution.
