@@ -1,6 +1,11 @@
 import fs from 'fs/promises';
 import path from 'path';
 
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
+
 const WIKI_ROOT = path.resolve('wiki');
 const PAGES_ROOT = path.join(WIKI_ROOT, 'pages');
 
@@ -121,6 +126,13 @@ _(none yet)_
 
 Chronological record of all operations.
 `, 'utf-8');
+
+  // Clear search index database (so QMD doesn't keep phantom search entries)
+  try {
+    await execAsync('npx qmd update --prune', { cwd: process.cwd() });
+  } catch {
+    // Ignore errors
+  }
 }
 
 export async function searchWiki(query: string): Promise<{ path: string; preview: string }[]> {

@@ -77,23 +77,22 @@ Processed source. Created N pages: list of pages created.
 When asked to ingest a document:
 
 1. Use `document_parse({ path: "wiki/raw/filename.pdf" })` to extract text
-2. Use `bash` with `find wiki/pages -name "*.md" | sort` to check existing pages
+2. Use `bash` to check existing pages (`npx qmd search "concept name"` or `find`)
 3. Create a **source page** summarizing the document via `write`
 4. Create **entity pages** for key people, orgs, equipment, systems
 5. Create **concept pages** for methods, standards, processes
-6. Use `bash` with `grep -rl "term" wiki/pages/` to find related pages and add `[[cross-references]]`
-7. **Update index.md** — rewrite `wiki/index.md` with all pages listed
-8. **Append to log.md** — append entry recording what was done
-9. Be thorough: a typical document produces 5–15 pages
+6. Update the index — rewrite `wiki/index.md` with all pages listed
+7. Update the search index — run `npx qmd embed` to generate vector embeddings for the new files
+8. Append to log.md — append entry recording what was done
 
 ## Query Workflow
 
 When asked a question:
 
-1. Use `bash` with `grep -rl "query" wiki/pages/` to find relevant pages
-2. Use `read` to read the full content of matching pages
-3. Synthesize an answer citing pages with `[[Page Title]]`
-4. If the answer is substantial and worth preserving, offer to file it as a synthesis page
+1. Use semantic search: `npx qmd query "your question"` (this uses hybrid dense+sparse search and LLM reranking)
+2. Use `read` to read the full content of relevant pages if the snippet wasn't enough
+3. Synthesize an answer citing pages with `[[Page Title]]` notation
+4. **Filing Syntheses:** If your answer synthesizes across multiple documents and provides a valuable new analysis, offer to file it back into the wiki. If requested, save it to `wiki/pages/syntheses/your-topic.md` and run `npx qmd embed` afterward.
 5. Append to log: `## [date] query | question summary`
 
 ## Lint Workflow

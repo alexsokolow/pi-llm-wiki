@@ -11,6 +11,7 @@
   "dependencies": {
     "@mariozechner/pi-ai": "^0.73.0",
     "@mariozechner/pi-coding-agent": "^0.73.0",
+    "@tobilu/qmd": "^2.1.0",
     "@types/d3": "^7.4.3",
     "d3": "^7.9.0",
     "express": "^5.1.0",

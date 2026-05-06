@@ -8,10 +8,26 @@ import agentRouter from './routes/agent.js';
 import graphRouter from './routes/graph.js';
 import configRouter from './routes/config.js';
 
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json({ limit: '50mb' }));
+
+// Initialize QMD collection
+async function initQmd() {
+  try {
+    await execAsync('npx qmd collection add wiki/pages pages');
+    console.log('📦 QMD collection initialized');
+  } catch {
+    // Ignore errors if collection already exists
+  }
+}
+initQmd();
 
 // API routes
 app.use('/api/wiki', wikiRouter);
