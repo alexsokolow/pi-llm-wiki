@@ -80,19 +80,24 @@ export default function ActivityDrawer({ entries, stats }: Props) {
               )}
               {entry.type === 'tool_start' && (
                 <div className="activity-tool-call">
-                  <span className="activity-icon">⚡</span>
-                  <span className="activity-tool-name">{entry.tool}</span>
+                  <div>
+                    <span className="activity-icon">⚡</span>
+                    <span className="activity-tool-name">{entry.tool}</span>
+                  </div>
                   {entry.preview && (
-                    <span className="activity-tool-args">{entry.preview}</span>
+                    <div className="activity-tool-args">{entry.preview}</div>
                   )}
                 </div>
               )}
               {entry.type === 'tool_end' && (
                 <div className="activity-tool-result">
-                  <span className="activity-icon">{entry.error ? '❌' : '✅'}</span>
-                  <span className="activity-tool-name">{entry.tool}</span>
-                  {entry.preview && (
-                    <span className="activity-tool-output">{entry.preview}</span>
+                  <div>
+                    <span className="activity-icon">{entry.error ? '❌' : '✅'}</span>
+                    <span className="activity-tool-name">{entry.tool}</span>
+                    <span style={{ opacity: 0.5, marginLeft: '0.5rem' }}>{entry.preview?.split(' → ')[0]}</span>
+                  </div>
+                  {entry.preview?.includes(' → ') && (
+                    <div className="activity-tool-output">{entry.preview.split(' → ').slice(1).join(' → ')}</div>
                   )}
                 </div>
               )}

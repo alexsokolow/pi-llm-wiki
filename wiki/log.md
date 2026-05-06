@@ -9,3 +9,7 @@ Processed source. Created 12 pages: sources/attention-is-all-you-need.md, entiti
 ## [2026-05-06] query | why is attention mechanism so powerful
 
 Searched wiki using semantic query. Read pages: Self-Attention, Scaled Dot-Product Attention, Multi-Head Attention, Transformer Architecture. Synthesized answer across 4 concept pages.
+
+## [2026-05-06] query | why are transformers important
+
+Searched wiki using npx qmd query. Consulted pages: Transformer Architecture, Self-Attention, Sequence Transduction, Attention Is All You Need. Synthesized answer for user.

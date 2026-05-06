@@ -739,18 +739,26 @@ body {
 
 .activity-tool-args {
   color: #484f58;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 500px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-family: monospace;
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  background: rgba(0,0,0,0.2);
+  border-radius: 3px;
 }
 
 .activity-tool-output {
   color: #3fb950;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 500px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-family: monospace;
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  background: rgba(0,0,0,0.2);
+  border-radius: 3px;
 }
 
 .activity-done {
