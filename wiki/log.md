@@ -16,3 +16,6 @@ Searched wiki using npx qmd query. Consulted pages: Transformer Architecture, Se
 ## [2026-05-06] query | why attention is all you need (5 bullet points)
 
 Used semantic search (npx qmd query) returning 13 chunks across all concept, entity, and source pages. Read pages: Attention Is All You Need, Transformer Architecture, Self-Attention, Multi-Head Attention. Synthesized answer in 5 bullet points covering: parallelization, long-range dependencies, multi-head representations, SOTA performance, and generality without recurrence/convolution.
+## [2026-05-06] query | why attention is all you need
+
+Answered in 2 sentences: Transformer replaces recurrence/convolution with self-attention for parallelization and O(1) path lengths. Sources consulted: [[Transformer Architecture]], [[Attention Is All You Need]].

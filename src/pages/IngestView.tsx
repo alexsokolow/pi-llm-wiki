@@ -1,8 +1,13 @@
 import { useState, useRef, useEffect } from 'react'
-import { useAgent } from '../AgentContext'
+import type { UseAgentStreamResult } from '../hooks/useAgentStream'
+import MarkdownViewer from '../components/MarkdownViewer'
 
-export default function IngestView() {
-  const { run, isRunning, output } = useAgent()
+interface Props {
+  agent: UseAgentStreamResult
+}
+
+export default function IngestView({ agent }: Props) {
+  const { run, isRunning, output } = agent
   const [sources, setSources] = useState<string[]>([])
   const [selected, setSelected] = useState('')
   const [status, setStatus] = useState('')
@@ -87,9 +92,9 @@ export default function IngestView() {
       )}
       {status && <div className="status-line">&gt; {status}</div>}
       {output && (
-        <pre className="output-stream">
-          {output}
-        </pre>
+        <div className="output-stream">
+          <MarkdownViewer content={output} />
+        </div>
       )}
     </div>
   )

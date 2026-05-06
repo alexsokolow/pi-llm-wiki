@@ -1,9 +1,13 @@
 import { useState, useRef, useEffect } from 'react'
-import { useAgent } from '../AgentContext'
+import type { UseAgentStreamResult } from '../hooks/useAgentStream'
 import MarkdownViewer from '../components/MarkdownViewer'
 
-export default function QueryView() {
-  const { run, isRunning, output } = useAgent()
+interface Props {
+  agent: UseAgentStreamResult
+}
+
+export default function QueryView({ agent }: Props) {
+  const { run, isRunning, output } = agent
   const [question, setQuestion] = useState('')
   const [history, setHistory] = useState<{ q: string; a: string }[]>([])
   const outputRef = useRef<HTMLDivElement>(null)
