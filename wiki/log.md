@@ -26,3 +26,6 @@ Processed source. Created 12 pages: sources/gemini-a-family-of-highly-capable-mu
 ## [2026-05-06] query | do gemini models use self attention
 
 Searched wiki. Consulted [[Gemini Architecture]], [[Gemini: A Family of Highly Capable Multimodal Models]], and [[Self-Attention]] pages. Answered: yes, Gemini uses decoder self-attention (masked) as part of its Transformer decoder base, plus multi-query attention as an efficiency variant.
+## [2026-05-07] query | key takeaways about Gemini models (3 bullet points)
+
+Used npx qmd query; top results were Transformer-architecture pages. Read Gemini source/entity/concept pages directly. Synthesized 3-bullet answer covering model tiers, multimodal SOTA performance, and post-training alignment.

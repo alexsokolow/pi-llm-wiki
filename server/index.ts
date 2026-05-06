@@ -23,17 +23,26 @@ const execAsync = promisify(exec);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const QMD_ENV = process.env;
-
 app.use(express.json({ limit: '50mb' }));
 
 // Initialize QMD collection
 async function initQmd() {
   try {
-    await execAsync('npx qmd collection add wiki/pages pages', { env: QMD_ENV });
-    console.log('📦 QMD collection initialized in wiki/db');
+    await execAsync('npx qmd collection add wiki/pages pages');
   } catch {
-    // Ignore errors if collection already exists
+    // Collection already exists
+  }
+  try {
+    const { stdout } = await execAsync('npx qmd update');
+    if (stdout.includes('new') || stdout.includes('updated')) {
+      console.log(`📦 QMD: ${stdout.trim()}`);
+      await execAsync('npx qmd embed');
+      console.log('📦 QMD: embeddings updated');
+    } else {
+      console.log('📦 QMD: index up to date');
+    }
+  } catch (err) {
+    console.log(`📦 QMD: update skipped (${err})`);
   }
 }
 initQmd();
