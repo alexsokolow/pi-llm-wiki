@@ -1,13 +1,30 @@
 import { Router } from 'express';
 import { AuthStorage } from '@mariozechner/pi-coding-agent';
 import path from 'path';
+import { readFile, writeFile } from 'fs/promises';
 
 const router = Router();
 
 const AUTH_PATH = path.resolve('wiki/.auth.json');
+const MODELS_PATH = path.resolve('wiki/.models.json');
+
+// Supported providers (trimmed list)
+const APIKEY_PROVIDERS = ['anthropic', 'openai', 'openrouter'];
 
 function getAuthStorage() {
   return AuthStorage.create(AUTH_PATH);
+}
+
+async function loadModelsJson(): Promise<any> {
+  try {
+    return JSON.parse(await readFile(MODELS_PATH, 'utf-8'));
+  } catch {
+    return {};
+  }
+}
+
+async function saveModelsJson(data: any): Promise<void> {
+  await writeFile(MODELS_PATH, JSON.stringify(data, null, 2), 'utf-8');
 }
 
 // ─── GET /api/auth/status ────────────────────────────────────────────────────
@@ -16,14 +33,13 @@ router.get('/status', async (_req, res) => {
   try {
     const auth = getAuthStorage();
     const oauthProviders = auth.getOAuthProviders();
-
-    // Known API-key providers
-    const apiKeyProviders = ['anthropic', 'openai', 'openrouter', 'google', 'mistral', 'groq', 'deepseek', 'xai'];
+    const modelsJson = await loadModelsJson();
 
     const providers: any[] = [];
 
-    // OAuth providers
+    // OAuth providers (only github-copilot)
     for (const p of oauthProviders) {
+      if (p.id !== 'github-copilot') continue;
       const status = auth.getAuthStatus(p.id);
       providers.push({
         id: p.id,
@@ -34,7 +50,7 @@ router.get('/status', async (_req, res) => {
     }
 
     // API key providers
-    for (const id of apiKeyProviders) {
+    for (const id of APIKEY_PROVIDERS) {
       const status = auth.getAuthStatus(id);
       providers.push({
         id,
@@ -43,6 +59,16 @@ router.get('/status', async (_req, res) => {
         authenticated: status.hasCredentials,
       });
     }
+
+    // Ollama (special: uses models.json, not auth.json)
+    const ollamaConfigured = !!(modelsJson?.providers?.ollama);
+    providers.push({
+      id: 'ollama',
+      name: 'ollama (local)',
+      type: 'ollama',
+      authenticated: ollamaConfigured,
+      baseUrl: modelsJson?.providers?.ollama?.baseUrl || 'http://127.0.0.1:11434/v1',
+    });
 
     res.json({ providers });
   } catch (err) {
@@ -69,86 +95,121 @@ router.post('/apikey', async (req, res) => {
   }
 });
 
-// ─── POST /api/auth/oauth/start ──────────────────────────────────────────────
+// ─── POST /api/auth/ollama ───────────────────────────────────────────────────
 
-router.post('/oauth/start', async (req, res) => {
+router.post('/ollama', async (req, res) => {
   try {
-    const { provider } = req.body;
-    if (!provider) {
-      res.status(400).json({ error: 'provider required' });
-      return;
-    }
+    const { baseUrl, models } = req.body;
+    const url = baseUrl || 'http://127.0.0.1:11434/v1';
 
-    const auth = getAuthStorage();
-    let authUrl = '';
-    let instructions = '';
+    const modelsJson = await loadModelsJson();
+    if (!modelsJson.providers) modelsJson.providers = {};
 
-    // Start OAuth login flow — non-blocking, we'll poll for completion
-    const loginPromise = auth.login(provider, {
-      onAuth: (info) => {
-        authUrl = info.url;
-        instructions = info.instructions || '';
-      },
-      onPrompt: async (prompt) => {
-        // For device flows that need manual code input, we handle via polling
-        return '';
-      },
-      onProgress: (message) => {
-        console.log(`  🔐 [${provider}] ${message}`);
-      },
-    });
+    modelsJson.providers.ollama = {
+      api: 'openai-completions',
+      apiKey: 'ollama',
+      baseUrl: url,
+      models: (models || []).map((m: any) => ({
+        id: m.id || m,
+        contextWindow: m.contextWindow || 131072,
+        input: ['text'],
+        reasoning: m.reasoning || false,
+      })),
+    };
 
-    // Wait briefly for onAuth to fire with the URL
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    if (authUrl) {
-      // Store the login promise so we can poll for completion
-      oauthPending.set(provider, loginPromise);
-      res.json({ url: authUrl, instructions });
-    } else {
-      // If no URL after 2s, the login might have completed instantly or failed
-      try {
-        await loginPromise;
-        res.json({ completed: true });
-      } catch (err) {
-        res.status(500).json({ error: String(err) });
-      }
-    }
+    await saveModelsJson(modelsJson);
+    console.log(`  🧠 Ollama configured: ${url} (${(models || []).length} models)`);
+    res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: String(err) });
   }
 });
 
-// Track pending OAuth flows
-const oauthPending = new Map<string, Promise<void>>();
+// ─── GET /api/auth/ollama/models ─ fetch available models from Ollama server ──
 
-// ─── GET /api/auth/oauth/poll/:provider ──────────────────────────────────────
-
-router.get('/oauth/poll/:provider', async (req, res) => {
-  const { provider } = req.params;
-  const pending = oauthPending.get(provider);
-
-  if (!pending) {
-    // Check if already authenticated
-    const auth = getAuthStorage();
-    const status = auth.getAuthStatus(provider);
-    if (status.hasCredentials) {
-      res.json({ status: 'complete' });
-    } else {
-      res.json({ status: 'no_pending_flow' });
+router.get('/ollama/models', async (req, res) => {
+  try {
+    const modelsJson = await loadModelsJson();
+    const baseUrl = modelsJson?.providers?.ollama?.baseUrl || 'http://127.0.0.1:11434';
+    // Ollama API: GET /api/tags
+    const ollamaUrl = baseUrl.replace(/\/v1\/?$/, '');
+    const response = await fetch(`${ollamaUrl}/api/tags`);
+    if (!response.ok) {
+      res.status(502).json({ error: `Ollama not reachable at ${ollamaUrl}` });
+      return;
     }
-    return;
+    const data = await response.json() as any;
+    const models = (data.models || []).map((m: any) => ({
+      id: m.name || m.model,
+      size: m.size,
+      parameterSize: m.details?.parameter_size,
+    }));
+    res.json({ models });
+  } catch (err) {
+    res.status(502).json({ error: `Cannot reach Ollama: ${err}` });
   }
+});
+
+// ─── GET /api/auth/oauth/login/:provider — SSE stream for OAuth flow ─────────
+
+router.get('/oauth/login/:provider', async (req, res) => {
+  const { provider } = req.params;
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+
+  const send = (data: any) => {
+    res.write(`data: ${JSON.stringify(data)}\n\n`);
+  };
 
   try {
-    await pending;
-    oauthPending.delete(provider);
+    const auth = getAuthStorage();
+
+    send({ type: 'status', message: 'Starting OAuth login...' });
+
+    await auth.login(provider, {
+      onAuth: (info) => {
+        console.log(`  🔐 [${provider}] Open: ${info.url}`);
+        if (info.instructions) {
+          console.log(`  🔐 [${provider}] ${info.instructions}`);
+        }
+        send({
+          type: 'auth',
+          url: info.url,
+          instructions: info.instructions || '',
+        });
+      },
+      onPrompt: async (prompt) => {
+        // The prompt.message contains the device code or instructions
+        console.log(`  🔐 [${provider}] ${prompt.message}`);
+        send({
+          type: 'prompt',
+          message: prompt.message,
+          placeholder: prompt.placeholder || '',
+        });
+        // For device flows, we don't need user input back — just display the code
+        // The SDK handles the polling internally
+        return '';
+      },
+      onProgress: (message) => {
+        console.log(`  🔐 [${provider}] ${message}`);
+        send({ type: 'progress', message });
+      },
+      onManualCodeInput: async () => {
+        // Not needed for SSE-based flow
+        return '';
+      },
+    });
+
     console.log(`  ✅ OAuth login complete for: ${provider}`);
-    res.json({ status: 'complete' });
+    send({ type: 'complete' });
   } catch (err) {
-    oauthPending.delete(provider);
-    res.json({ status: 'error', error: String(err) });
+    console.error(`  ❌ OAuth login failed for ${provider}:`, err);
+    send({ type: 'error', message: String(err) });
   }
+
+  res.end();
 });
 
 // ─── DELETE /api/auth/:provider ──────────────────────────────────────────────

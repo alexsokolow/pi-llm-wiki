@@ -21,8 +21,9 @@ interface AvailableModel {
 interface ProviderInfo {
   id: string
   name: string
-  type: 'oauth' | 'apikey'
+  type: 'oauth' | 'apikey' | 'ollama'
   authenticated: boolean
+  baseUrl?: string
 }
 
 export default function SettingsView() {
@@ -34,11 +35,20 @@ export default function SettingsView() {
   const [authProviders, setAuthProviders] = useState<ProviderInfo[]>([])
   const [apiKeyInputs, setApiKeyInputs] = useState<Record<string, string>>({})
   const [oauthStatus, setOauthStatus] = useState<Record<string, string>>({})
+  const [ollamaUrl, setOllamaUrl] = useState('http://127.0.0.1:11434/v1')
+  const [ollamaModels, setOllamaModels] = useState<any[]>([])
+  const [ollamaSelected, setOllamaSelected] = useState<string[]>([])
 
   const loadAuthStatus = () => {
     fetch('/api/auth/status')
       .then(r => r.json())
-      .then(data => setAuthProviders(data.providers || []))
+      .then(data => {
+        const providers = data.providers || []
+        setAuthProviders(providers)
+        // Set ollama URL from server config if available
+        const ollama = providers.find((p: any) => p.id === 'ollama')
+        if (ollama?.baseUrl) setOllamaUrl(ollama.baseUrl)
+      })
       .catch(() => {})
   }
 
@@ -95,36 +105,42 @@ export default function SettingsView() {
   const startOAuth = async (provider: string) => {
     setOauthStatus(prev => ({ ...prev, [provider]: 'starting...' }))
     try {
-      const res = await fetch('/api/auth/oauth/start', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider }),
-      })
-      const data = await res.json()
-      if (data.completed) {
-        setOauthStatus(prev => ({ ...prev, [provider]: '✅ authenticated' }))
-        loadAuthStatus()
-        loadModels()
-        return
-      }
-      if (data.url) {
-        window.open(data.url, '_blank')
-        setOauthStatus(prev => ({ ...prev, [provider]: 'waiting for authorization...' }))
-        // Poll for completion
-        const pollRes = await fetch(`/api/auth/oauth/poll/${provider}`)
-        const pollData = await pollRes.json()
-        if (pollData.status === 'complete') {
-          setOauthStatus(prev => ({ ...prev, [provider]: '✅ authenticated' }))
+      const eventSource = new EventSource(`/api/auth/oauth/login/${provider}`)
+
+      eventSource.onmessage = (event) => {
+        const data = JSON.parse(event.data)
+        if (data.type === 'auth') {
+          window.open(data.url, '_blank')
+          const msg = data.instructions
+            ? `🔗 Opened browser. Code: ${data.instructions}`
+            : '🔗 Opened browser for authorization...'
+          setOauthStatus(prev => ({ ...prev, [provider]: msg }))
+        } else if (data.type === 'prompt') {
+          // This contains the device code
+          setOauthStatus(prev => ({ ...prev, [provider]: `📋 ${data.message}` }))
+        } else if (data.type === 'progress') {
+          setOauthStatus(prev => ({ ...prev, [provider]: `⏳ ${data.message}` }))
+        } else if (data.type === 'complete') {
+          setOauthStatus(prev => ({ ...prev, [provider]: '✅ authenticated!' }))
+          eventSource.close()
           loadAuthStatus()
           loadModels()
-        } else {
-          setOauthStatus(prev => ({ ...prev, [provider]: `❌ ${pollData.error || 'failed'}` }))
+          setTimeout(() => setOauthStatus(prev => ({ ...prev, [provider]: '' })), 3000)
+        } else if (data.type === 'error') {
+          setOauthStatus(prev => ({ ...prev, [provider]: `❌ ${data.message}` }))
+          eventSource.close()
+          setTimeout(() => setOauthStatus(prev => ({ ...prev, [provider]: '' })), 5000)
         }
+      }
+
+      eventSource.onerror = () => {
+        eventSource.close()
+        setOauthStatus(prev => ({ ...prev, [provider]: '' }))
       }
     } catch (err) {
       setOauthStatus(prev => ({ ...prev, [provider]: `❌ ${err}` }))
+      setTimeout(() => setOauthStatus(prev => ({ ...prev, [provider]: '' })), 5000)
     }
-    setTimeout(() => setOauthStatus(prev => ({ ...prev, [provider]: '' })), 5000)
   }
 
   const logout = async (provider: string) => {
@@ -132,6 +148,42 @@ export default function SettingsView() {
     loadAuthStatus()
     loadModels()
     setStatus(`🗑️ ${provider} logged out`)
+    setTimeout(() => setStatus(''), 2000)
+  }
+
+  const fetchOllamaModels = async () => {
+    try {
+      const res = await fetch('/api/auth/ollama/models')
+      if (res.ok) {
+        const data = await res.json()
+        setOllamaModels(data.models || [])
+      } else {
+        const err = await res.json()
+        setStatus(`❌ Ollama: ${err.error}`)
+        setTimeout(() => setStatus(''), 3000)
+      }
+    } catch {
+      setStatus('❌ Cannot reach Ollama server')
+      setTimeout(() => setStatus(''), 3000)
+    }
+  }
+
+  const saveOllama = async () => {
+    const res = await fetch('/api/auth/ollama', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        baseUrl: ollamaUrl,
+        models: ollamaSelected.map(id => ({ id })),
+      }),
+    })
+    if (res.ok) {
+      setStatus('✅ Ollama configured')
+      loadAuthStatus()
+      loadModels()
+    } else {
+      setStatus('❌ Failed to save Ollama config')
+    }
     setTimeout(() => setStatus(''), 2000)
   }
 
@@ -185,6 +237,42 @@ export default function SettingsView() {
                   </button>
                   {oauthStatus[p.id] && (
                     <span style={{ marginLeft: '0.5rem', fontSize: '0.8rem' }}>{oauthStatus[p.id]}</span>
+                  )}
+                </div>
+              )}
+              {p.type === 'ollama' && (
+                <div style={{ marginTop: '0.25rem', marginLeft: '1.5rem' }}>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <input
+                      className="command-input"
+                      placeholder="Ollama URL"
+                      value={ollamaUrl}
+                      onChange={e => setOllamaUrl(e.target.value)}
+                      style={{ flex: 1 }}
+                    />
+                    <button className="btn" onClick={fetchOllamaModels}>detect</button>
+                  </div>
+                  {ollamaModels.length > 0 && (
+                    <div style={{ marginTop: '0.5rem' }}>
+                      <div style={{ fontSize: '0.8rem', opacity: 0.7, marginBottom: '0.25rem' }}>Select models to use:</div>
+                      {ollamaModels.map(m => (
+                        <label key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', marginBottom: '0.2rem' }}>
+                          <input
+                            type="checkbox"
+                            checked={ollamaSelected.includes(m.id)}
+                            onChange={e => {
+                              if (e.target.checked) {
+                                setOllamaSelected(prev => [...prev, m.id])
+                              } else {
+                                setOllamaSelected(prev => prev.filter(x => x !== m.id))
+                              }
+                            }}
+                          />
+                          {m.id} {m.parameterSize && <span style={{ opacity: 0.5 }}>({m.parameterSize})</span>}
+                        </label>
+                      ))}
+                      <button className="btn" onClick={saveOllama} style={{ marginTop: '0.5rem' }}>Save Ollama</button>
+                    </div>
                   )}
                 </div>
               )}
