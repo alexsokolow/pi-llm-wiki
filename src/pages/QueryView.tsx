@@ -21,6 +21,11 @@ export default function QueryView() {
     setHistory(h => [...h, { q, a: answer }])
   }
 
+  const handleNewSession = async () => {
+    await fetch('/api/agent/query/reset', { method: 'POST' })
+    setHistory([])
+  }
+
   return (
     <div className="query">
       <div className="query-output" ref={outputRef}>
@@ -41,6 +46,15 @@ export default function QueryView() {
         )}
       </div>
       <div className="command-bar">
+        <button
+          className="btn"
+          onClick={handleNewSession}
+          disabled={isRunning}
+          title="Start a new query session"
+          style={{ fontSize: '0.8rem' }}
+        >
+          + new
+        </button>
         <input
           className="command-input"
           type="text"

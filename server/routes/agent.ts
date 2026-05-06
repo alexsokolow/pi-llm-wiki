@@ -180,12 +180,14 @@ Follow the Ingest Workflow in your instructions. Be thorough — create 5-15 pag
 
 // Persistent query session (survives across follow-up messages)
 let querySessionId: string | null = null;
+let queryIsFirstMessage = true;
 
 router.post('/agent/query/reset', (_req, res) => {
   if (querySessionId) {
     deleteSession(querySessionId);
     querySessionId = null;
   }
+  queryIsFirstMessage = true;
   res.json({ ok: true });
 });
 
@@ -200,6 +202,7 @@ router.post('/agent/query', async (req, res) => {
       const created = await createWikiSession();
       querySessionId = created.sessionId;
       session = created.session;
+      queryIsFirstMessage = true;
     }
 
     res.setHeader('Content-Type', 'text/event-stream');
@@ -211,7 +214,13 @@ router.post('/agent/query', async (req, res) => {
     entry.subscribers.add(send);
     req.on('close', () => { entry.subscribers.delete(send); });
 
-    await session.prompt(question);
+    // First message gets explicit workflow instruction
+    const prompt = queryIsFirstMessage
+      ? `Answer this question using the wiki. Follow the Query Workflow in your instructions (use npx qmd query for search).\n\nQuestion: ${question}`
+      : question;
+    queryIsFirstMessage = false;
+
+    await session.prompt(prompt);
     sendStats(res, session);
     res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
     entry.subscribers.delete(send);
