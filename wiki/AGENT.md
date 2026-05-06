@@ -89,8 +89,8 @@ When asked to ingest a document:
 
 When asked a question:
 
-1. Use semantic search: `npx qmd query "your question"` (this uses hybrid dense+sparse search and LLM reranking)
-2. Use `read` to read the full content of relevant pages if the snippet wasn't enough
+1. Use semantic search: `npx qmd query "your question" --json` (this uses hybrid dense+sparse search and LLM reranking, returning structured JSON results)
+2. Use `read` to read the full content of relevant pages if the JSON snippet wasn't enough
 3. Synthesize an answer citing pages with `[[Page Title]]` notation
 4. **Filing Syntheses:** If your answer synthesizes across multiple documents and provides a valuable new analysis, offer to file it back into the wiki. If requested, save it to `wiki/pages/syntheses/your-topic.md` and run `npx qmd embed` afterward.
 5. Append to log: `## [date] query | question summary`
