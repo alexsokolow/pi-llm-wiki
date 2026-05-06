@@ -53,7 +53,7 @@ export async function createWikiSession(opts?: {
 }): Promise<{ sessionId: string; session: AgentSession }> {
   const config = await loadConfig();
   const agentDir = path.join(homedir(), '.pi', 'agent');
-  const authStorage = AuthStorage.create(path.join(agentDir, 'auth.json'));
+  const authStorage = AuthStorage.create(path.resolve('wiki/.auth.json'));
 
   // Build system prompt from wiki/AGENT.md
   const agentsMd = await readFile('wiki/AGENT.md', 'utf-8').catch(() => '');
@@ -72,8 +72,8 @@ ${wikiIndex}`;
 
   const thinkingLevel = (opts?.thinkingLevel ?? config.thinkingLevel) as any;
 
-  // Resolve model from app config
-  const modelRegistry = ModelRegistry.create(authStorage, path.join(agentDir, 'models.json'));
+  // Resolve model from app config using local auth
+  const modelRegistry = ModelRegistry.create(authStorage, path.resolve('wiki/.models.json'));
   const provider = opts?.provider ?? config.defaultProvider;
   const modelId = opts?.model ?? config.defaultModel;
   const model = modelRegistry.find(provider, modelId);

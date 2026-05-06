@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { AuthStorage, ModelRegistry } from '@mariozechner/pi-coding-agent';
-import { homedir } from 'os';
 import path from 'path';
 import type { Response } from 'express';
 import {
@@ -72,9 +71,8 @@ function sendStats(res: Response, session: any) {
 
 router.get('/models', async (_req, res) => {
   try {
-    const agentDir = path.join(homedir(), '.pi', 'agent');
-    const authStorage = AuthStorage.create(path.join(agentDir, 'auth.json'));
-    const registry = ModelRegistry.create(authStorage, path.join(agentDir, 'models.json'));
+    const authStorage = AuthStorage.create(path.resolve('wiki/.auth.json'));
+    const registry = ModelRegistry.create(authStorage, path.resolve('wiki/.models.json'));
     const available = await registry.getAvailable();
     res.json({ models: available });
   } catch (err) {

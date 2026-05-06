@@ -1,3 +1,7 @@
 # QMD Databases & GGUF Model Embeddings
 wiki/db/
-node_modules/test_venv/
+node_modules/
+test_venv/
+
+# App credentials (secrets)
+wiki/.auth.json
