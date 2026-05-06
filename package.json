@@ -9,22 +9,18 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@mariozechner/pi-ai": "^0.73.0",
     "@mariozechner/pi-coding-agent": "^0.73.0",
     "@tobilu/qmd": "^2.1.0",
-    "@types/d3": "^7.4.3",
     "d3": "^7.9.0",
     "express": "^5.1.0",
-    "mammoth": "^1.12.0",
-    "pdf-parse": "^2.4.5",
     "pi-docparser": "^1.1.1",
-    "pi-subagents": "^0.24.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
+    "@types/d3": "^7.4.3",
     "@types/express": "^5.0.1",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.3",

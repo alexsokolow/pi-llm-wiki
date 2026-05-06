@@ -19,3 +19,10 @@ Used semantic search (npx qmd query) returning 13 chunks across all concept, ent
 ## [2026-05-06] query | why attention is all you need
 
 Answered in 2 sentences: Transformer replaces recurrence/convolution with self-attention for parallelization and O(1) path lengths. Sources consulted: [[Transformer Architecture]], [[Attention Is All You Need]].
+## [2026-05-06] ingest | Gemini: A Family of Highly Capable Multimodal Models
+
+Processed source. Created 12 pages: sources/gemini-a-family-of-highly-capable-multimodal-models.md, entities/google.md, entities/gemini-ultra.md, entities/gemini-pro.md, entities/gemini-nano.md, entities/tpuv4.md, entities/tpuv5e.md, concepts/gemini-architecture.md, concepts/multimodal-pre-training.md, concepts/post-training.md, concepts/rlhf.md, concepts/uncertainty-routed-chain-of-thought.md.
+
+## [2026-05-06] query | do gemini models use self attention
+
+Searched wiki. Consulted [[Gemini Architecture]], [[Gemini: A Family of Highly Capable Multimodal Models]], and [[Self-Attention]] pages. Answered: yes, Gemini uses decoder self-attention (masked) as part of its Transformer decoder base, plus multi-query attention as an efficiency variant.

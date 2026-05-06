@@ -9,7 +9,6 @@ process.env.XDG_CACHE_HOME = path.resolve('wiki/db');
 
 import wikiRouter from './routes/wiki.js';
 import sourcesRouter from './routes/sources.js';
-import searchRouter from './routes/search.js';
 import agentRouter from './routes/agent.js';
 import authRouter from './routes/auth.js';
 import graphRouter from './routes/graph.js';
@@ -42,7 +41,6 @@ initQmd();
 // API routes
 app.use('/api/wiki', wikiRouter);
 app.use('/api/sources', sourcesRouter);
-app.use('/api/search', searchRouter);
 app.use('/api/graph', graphRouter);
 app.use('/api/config', configRouter);
 app.use('/api/auth', authRouter);

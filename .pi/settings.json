@@ -1,4 +1,5 @@
 {
-  "defaultModel": "x-ai/grok-4.1-fast",
-  "defaultProvider": "openrouter"
+  "packages": [
+    "npm:pi-docparser"
+  ]
 }
