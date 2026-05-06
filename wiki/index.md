@@ -1,28 +1,23 @@
 # Wiki Index
 
 ## Sources
-- [[Attention Is All You Need]] — Foundational paper introducing the Transformer architecture (Vaswani et al., NIPS 2017)
+- [[Attention Is All You Need]] — Foundational paper introducing the Transformer architecture (Vaswani et al., 2017)
 
 ## Entities
-- [[Aidan N. Gomez]] — Equal-contribution co-author, designed Tensor2Tensor framework (University of Toronto)
-- [[Ashish Vaswani]] — Equal-contribution first author, designed first Transformer models (Google Brain)
-- [[Google Brain]] — Deep-learning research team at Google, institutional home of the Transformer
-- [[Illia Polosukhin]] — Equal-contribution co-author, implemented first Transformer models (Google Research)
-- [[Jakob Uszkoreit]] — Proposed replacing RNNs with self-attention, originated the Transformer concept (Google Research)
-- [[Llion Jones]] — Equal-contribution co-author, initial codebase and efficient inference (Google Research)
-- [[Łukasz Kaiser]] — Equal-contribution co-author, Tensor2Tensor implementation (Google Brain)
-- [[Niki Parmar]] — Equal-contribution co-author, model tuning and ablations (Google Research)
-- [[Noam Shazeer]] — Equal-contribution co-author, proposed multi-head attention and scaled dot-product attention (Google Brain)
+- [[Google Brain]] — AI research lab at Google, primary institution behind the Transformer paper
+- [[Ashish Vaswani]] — AI researcher at Google Brain who designed and implemented the first Transformer models
+- [[Noam Shazeer]] — AI researcher at Google Brain who proposed scaled dot-product attention and multi-head attention
+- [[Jakob Uszkoreit]] — Google Research scientist who proposed replacing RNNs with self-attention
+- [[Łukasz Kaiser]] — AI researcher at Google Brain who co-implemented Tensor2Tensor for the project
 
 ## Concepts
-- [[Byte-Pair Encoding]] — Subword tokenization used for shared source-target vocabulary (~37K tokens)
-- [[Encoder-Decoder Transformer]] — Specific encoder-decoder configuration for sequence transduction
-- [[Layer Normalization]] — Stabilization technique applied around every Transformer sub-layer
-- [[Multi-Head Attention]] — Parallel attention mechanism with h=8 heads, d_k=64 per head
-- [[Positional Encoding]] — Sinusoidal position representation injected into input embeddings
-- [[Scaled Dot-Product Attention]] — Attention(Q,K,V) = softmax(QK^T / √d_k)V, with scaling for stability
-- [[Self-Attention]] — Relating different positions of a single sequence; core idea replacing recurrence
-- [[Transformer Architecture]] — First sequence transduction model based entirely on attention (no recurrence)
+- [[Transformer Architecture]] — Encoder-decoder model using self-attention, introduced in Attention Is All You Need
+- [[Self-Attention]] — Attention mechanism relating different positions of a single sequence to compute its representation
+- [[Multi-Head Attention]] — Parallel attention mechanism allowing the model to jointly attend to information from different subspaces
+- [[Scaled Dot-Product Attention]] — Specific attention function used in the Transformer with a scaling factor for stability
+- [[Positional Encoding]] — Method to inject token order information into the Transformer via sinusoidal functions
+- [[Encoder-Decoder Architecture]] — Framework for mapping input sequences to output sequences, used by the Transformer
+- [[Sequence Transduction]] — Task of transforming an input sequence into an output sequence of differing length
 
 ## Syntheses
 _(none yet)_

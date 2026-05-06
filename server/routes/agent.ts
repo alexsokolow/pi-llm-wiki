@@ -180,33 +180,49 @@ Follow the Ingest Workflow in your instructions. Be thorough — create 5-15 pag
 
 // ─── POST /api/agent/query ───────────────────────────────────────────────────
 
+// Persistent query session (survives across follow-up messages)
+let querySessionId: string | null = null;
+
+router.post('/agent/query/reset', (_req, res) => {
+  if (querySessionId) {
+    deleteSession(querySessionId);
+    querySessionId = null;
+  }
+  res.json({ ok: true });
+});
+
 router.post('/agent/query', async (req, res) => {
   try {
     const { question } = req.body;
     if (!question) { res.status(400).json({ error: 'question required' }); return; }
 
-    const { sessionId, session } = await createWikiSession();
+    // Reuse existing query session or create a new one
+    let session = querySessionId ? getSession(querySessionId) : null;
+    if (!session) {
+      const created = await createWikiSession();
+      querySessionId = created.sessionId;
+      session = created.session;
+    }
 
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
 
-    const entry = getSessionEntry(sessionId)!;
+    const entry = getSessionEntry(querySessionId!)!;
     const send = createEventForwarder(res);
     entry.subscribers.add(send);
     req.on('close', () => { entry.subscribers.delete(send); });
 
-    const prompt = `Answer this question using the wiki: ${question}
-
-Follow the Query Workflow in your instructions. Cite pages with [[Title]] notation.`;
-
-    await session.prompt(prompt);
+    await session.prompt(question);
     sendStats(res, session);
     res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
     entry.subscribers.delete(send);
-    deleteSession(sessionId);
     res.end();
   } catch (err) {
+    if (querySessionId) {
+      deleteSession(querySessionId);
+      querySessionId = null;
+    }
     if (res.headersSent) res.end();
     else res.status(500).json({ error: String(err) });
   }

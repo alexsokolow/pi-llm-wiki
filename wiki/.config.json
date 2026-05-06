@@ -1,0 +1,11 @@
+{
+  "defaultModel": "claude-sonnet-4.6",
+  "defaultProvider": "github-copilot",
+  "thinkingLevel": "high",
+  "plugins": {
+    "webSearch": false,
+    "codeSearch": false,
+    "subagents": true,
+    "fileSystem": true
+  }
+}

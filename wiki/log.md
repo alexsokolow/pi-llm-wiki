@@ -1,9 +1,11 @@
 # Wiki Log
 
 Chronological record of all operations.
+## [2026-05-06] ingest | Attention Is All You Need
 
-## [2026-05-06] ingest | Attention Is All You Need (1706.03762v7)
+Processed source. Created 12 pages: sources/attention-is-all-you-need.md, entities/google-brain.md, entities/ashish-vaswani.md, entities/noam-shazeer.md, entities/jakob-uszkoreit.md, entities/lukasz-kaiser.md, concepts/transformer-architecture.md, concepts/self-attention.md, concepts/multi-head-attention.md, concepts/scaled-dot-product-attention.md, concepts/positional-encoding.md, concepts/encoder-decoder-architecture.md, concepts/sequence-transduction.md.
 
-Processed source. Created 19 pages: sources/attention-is-all-you-need.md, entities/ashish-vaswani.md, entities/noam-shazeer.md, entities/jakob-uszkoreit.md, entities/niki-parmar.md, entities/google-brain.md, entities/llion-jones.md, entities/illia-polosukhin.md, entities/lukasz-kaiser.md, entities/aidan-n-gomez.md, concepts/transformer-architecture.md, concepts/multi-head-attention.md, concepts/self-attention.md, concepts/scaled-dot-product-attention.md, concepts/positional-encoding.md, concepts/byte-pair-encoding.md, concepts/layer-normalization.md, concepts/encoder-decoder-transformer.md.
+## [2026-05-06] query | what is self attention in simple words
+## [2026-05-06] query | why is attention mechanism so powerful
 
-ArXiv:1706.03762v7 [cs.CL] 2 Aug 2023. NIPS 2017. Foundational paper introducing the Transformer.
+Searched wiki using semantic query. Read pages: Self-Attention, Scaled Dot-Product Attention, Multi-Head Attention, Transformer Architecture. Synthesized answer across 4 concept pages.

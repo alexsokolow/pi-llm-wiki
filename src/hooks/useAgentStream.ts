@@ -80,7 +80,7 @@ export function useAgentStream(): UseAgentStreamResult {
                 type: 'tool_start',
                 timestamp: Date.now(),
                 tool: event.tool,
-                preview: argsStr.slice(0, 150),
+                preview: argsStr,
               })
             } else if (event.type === 'tool_end') {
               addEntry({
