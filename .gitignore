@@ -5,3 +5,4 @@ test_venv/
 
 # App credentials (secrets)
 wiki/.auth.json
+wiki/.agent/

@@ -9,7 +9,7 @@ import {
 } from '@mariozechner/pi-coding-agent';
 import { homedir } from 'os';
 import path from 'path';
-import { readFile } from 'fs/promises';
+import { readFile, mkdir } from 'fs/promises';
 import { loadConfig } from './config.js';
 
 // ─── Session Store ───────────────────────────────────────────────────────────
@@ -52,7 +52,9 @@ export async function createWikiSession(opts?: {
   thinkingLevel?: string;
 }): Promise<{ sessionId: string; session: AgentSession }> {
   const config = await loadConfig();
-  const agentDir = path.join(homedir(), '.pi', 'agent');
+  // Use local agent directory — fully self-contained, no global ~/.pi/agent dependency
+  const agentDir = path.resolve('wiki/.agent');
+  await mkdir(agentDir, { recursive: true });
   const authStorage = AuthStorage.create(path.resolve('wiki/.auth.json'));
 
   // Build system prompt from wiki/AGENT.md
@@ -87,6 +89,11 @@ ${wikiIndex}`;
   const loader = new DefaultResourceLoader({
     cwd: process.cwd(),
     agentDir,
+    noExtensions: true,  // Don't discover global extensions
+    noSkills: true,      // Don't discover global skills
+    noPromptTemplates: true,
+    noThemes: true,
+    noContextFiles: true, // Don't read global AGENTS.md
     additionalExtensionPaths: [docparserExtPath],
     skillsOverride: (current) => ({
       skills: [
