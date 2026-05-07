@@ -29,3 +29,6 @@ Searched wiki. Consulted [[Gemini Architecture]], [[Gemini: A Family of Highly C
 ## [2026-05-07] query | key takeaways about Gemini models (3 bullet points)
 
 Used npx qmd query; top results were Transformer-architecture pages. Read Gemini source/entity/concept pages directly. Synthesized 3-bullet answer covering model tiers, multimodal SOTA performance, and post-training alignment.
+## [2026-05-07] query | Gemini models most important takeaways (3 bullet points)
+
+Searched wiki using 'Gemini models key takeaways capabilities architecture'. Top results: [[Gemini: A Family of Highly Capable Multimodal Models]], [[Gemini Ultra]], [[Gemini Pro]], [[Gemini Nano]], [[Gemini Architecture]], [[Post-Training]], [[RLHF]]. Synthesized a 3-bullet answer covering benchmark performance, native multimodality, and the three-tier model family.
