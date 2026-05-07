@@ -1,8 +1,19 @@
-# QMD Databases & GGUF Model Embeddings
-wiki/db/
 node_modules/
 test_venv/
 
-# App credentials (secrets)
+# Wiki runtime data (user-generated, not source code)
+wiki/db/
+wiki/pages/
+wiki/raw/
+wiki/index.md
+wiki/log.md
 wiki/.auth.json
 wiki/.agent/
+wiki/.config.json
+wiki/.models.json
+
+# Keep wiki skeleton via force-add (see below)
+# wiki/AGENT.md and wiki/skills/ ARE tracked
+
+# Pi local config
+.pi/npm/

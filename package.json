@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "tsx server/index.ts",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "setup": "tsx scripts/init-wiki.ts",
+    "postinstall": "tsx scripts/init-wiki.ts"
   },
   "dependencies": {
     "@mariozechner/pi-coding-agent": "^0.73.0",

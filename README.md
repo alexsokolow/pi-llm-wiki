@@ -7,9 +7,9 @@ Inspired by [Karpathy's LLM Wiki pattern](https://github.com/karpathy/llm-wiki).
 ## Quick Start
 
 ```bash
-git clone <this-repo>
-cd llm-wiki
-npm install
+git clone https://github.com/alexsokolow/pi-llm-wiki.git
+cd pi-llm-wiki
+npm install    # installs deps + initializes wiki/ skeleton
 npm run dev
 ```
 
