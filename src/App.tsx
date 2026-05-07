@@ -30,7 +30,7 @@ export default function App() {
 
   return (
     <TerminalLayout
-      header="LLM WIKI v0.1"
+      header="llm-wiki powered by pi sdk"
       nav={
         <nav className="nav-bar">
           {navItems.map((item) => (
