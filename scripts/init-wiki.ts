@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { mkdirSync, existsSync, writeFileSync } from 'fs';
+import { mkdirSync, existsSync, writeFileSync, rmSync } from 'fs';
 
 const dirs = [
   'wiki/raw',
@@ -7,12 +7,17 @@ const dirs = [
   'wiki/pages/entities',
   'wiki/pages/concepts',
   'wiki/pages/syntheses',
-  'wiki/db',
 ];
 
 for (const dir of dirs) {
   mkdirSync(dir, { recursive: true });
 }
+
+// Clear QMD index (will be rebuilt on server start)
+if (existsSync('wiki/db')) {
+  rmSync('wiki/db', { recursive: true, force: true });
+}
+mkdirSync('wiki/db', { recursive: true });
 
 const files: Record<string, string> = {
   'wiki/index.md': `# Wiki Index\n\n## Sources\n_(none yet)_\n\n## Entities\n_(none yet)_\n\n## Concepts\n_(none yet)_\n\n## Syntheses\n_(none yet)_\n`,
