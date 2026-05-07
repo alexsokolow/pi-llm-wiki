@@ -27,24 +27,33 @@ app.use(express.json({ limit: '50mb' }));
 
 // Initialize QMD collection
 async function initQmd() {
+  const expectedPath = path.resolve('wiki/pages');
   try {
-    // Always re-register collection to ensure path matches current cwd
+    // Check if collection already points to the right path
+    const { stdout } = await execAsync('npx qmd collection show pages');
+    if (stdout.includes(expectedPath)) {
+      // Collection exists and points to correct path — just update
+      const { stdout: updateOut } = await execAsync('npx qmd update');
+      if (updateOut.includes('new') || updateOut.includes('updated')) {
+        console.log(`📦 QMD: ${updateOut.trim()}`);
+        await execAsync('npx qmd embed');
+        console.log('📦 QMD: embeddings updated');
+      } else {
+        console.log('📦 QMD: index up to date');
+      }
+      return;
+    }
+    // Wrong path — re-register
     await execAsync('npx qmd collection remove pages').catch(() => {});
-    await execAsync('npx qmd collection add wiki/pages pages');
   } catch {
-    // Collection setup failed
+    // Collection doesn't exist yet
   }
   try {
-    const { stdout } = await execAsync('npx qmd update');
-    if (stdout.includes('new') || stdout.includes('updated')) {
-      console.log(`📦 QMD: ${stdout.trim()}`);
-      await execAsync('npx qmd embed');
-      console.log('📦 QMD: embeddings updated');
-    } else {
-      console.log('📦 QMD: index up to date');
-    }
+    await execAsync('npx qmd collection add wiki/pages pages');
+    console.log('📦 QMD: collection registered');
+    await execAsync('npx qmd embed').catch(() => {});
   } catch (err) {
-    console.log(`📦 QMD: update skipped (${err})`);
+    console.log(`📦 QMD: setup failed (${err})`);
   }
 }
 initQmd();
