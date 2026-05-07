@@ -28,9 +28,11 @@ app.use(express.json({ limit: '50mb' }));
 // Initialize QMD collection
 async function initQmd() {
   try {
+    // Always re-register collection to ensure path matches current cwd
+    await execAsync('npx qmd collection remove pages').catch(() => {});
     await execAsync('npx qmd collection add wiki/pages pages');
   } catch {
-    // Collection already exists
+    // Collection setup failed
   }
   try {
     const { stdout } = await execAsync('npx qmd update');
