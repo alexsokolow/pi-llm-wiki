@@ -2,7 +2,7 @@
 
 A personal knowledge base powered by LLMs. Drop in documents, and the AI incrementally builds a structured, interlinked wiki — extracting entities, concepts, and cross-references automatically.
 
-Inspired by [Karpathy's LLM Wiki pattern](https://github.com/karpathy/llm-wiki).
+Inspired by [Karpathy's LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f).
 
 ## Quick Start
 
